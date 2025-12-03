@@ -1,0 +1,4880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM ESCAPE: English for Developers</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+       
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+       
+        :root {
+            --neon-cyan: #00f5ff;
+            --neon-magenta: #ff00ff;
+            --neon-green: #00ff88;
+            --neon-orange: #ff8800;
+            --neon-red: #ff3355;
+            --neon-yellow: #ffff00;
+            --dark-bg: #0a0a12;
+            --panel-bg: rgba(10, 20, 40, 0.95);
+            --border-glow: rgba(0, 245, 255, 0.5);
+        }
+       
+        body {
+            overflow: hidden;
+            background: var(--dark-bg);
+            font-family: 'Rajdhani', sans-serif;
+            color: #fff;
+            cursor: none;
+        }
+       
+        #gameContainer { width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; }
+       
+        /* Loading & Start Screens */
+        #loadingScreen, #startScreen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0a0a12 0%, #1a1a2e 50%, #0a0a12 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+       
+        #loadingScreen.hidden { opacity: 0; pointer-events: none; }
+        #startScreen { display: none; z-index: 999; cursor: default; }
+        #startScreen.visible { display: flex; }
+       
+        .loading-title, .start-logo {
+            font-family: 'Orbitron', monospace;
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta), var(--neon-cyan));
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s infinite;
+            margin-bottom: 0.5rem;
+        }
+       
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+       
+        .loading-subtitle, .start-tagline {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.3rem;
+            color: var(--neon-green);
+            margin-bottom: 2rem;
+        }
+       
+        .loading-bar-container {
+            width: 300px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+       
+        .loading-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+       
+        .loading-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 1rem;
+        }
+       
+        .start-description {
+            max-width: 650px;
+            text-align: center;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 2rem;
+            padding: 0 1rem;
+        }
+       
+        .controls-preview {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+        }
+       
+        .controls-preview h3 {
+            font-family: 'Orbitron', monospace;
+            color: var(--neon-cyan);
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+       
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            justify-content: center;
+        }
+       
+        .control-item { display: flex; align-items: center; gap: 0.5rem; }
+       
+        .key {
+            background: rgba(0, 245, 255, 0.2);
+            border: 1px solid var(--neon-cyan);
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+       
+        .start-button {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            padding: 1rem 3rem;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            border: none;
+            border-radius: 50px;
+            color: #000;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+       
+        .start-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(0, 245, 255, 0.6), 0 0 80px rgba(255, 0, 255, 0.4);
+        }
+       
+        /* HUD */
+        #hud {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+       
+        #hud.visible { display: block; }
+       
+        .hud-top {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+       
+        .hud-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 0.8rem 1.2rem;
+            backdrop-filter: blur(10px);
+        }
+       
+        .timer {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--neon-cyan);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+       
+        .timer.warning { color: var(--neon-orange); animation: pulse 1s infinite; }
+        .timer.critical { color: var(--neon-red); animation: pulse 0.5s infinite; }
+       
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+       
+        .room-indicator {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            color: var(--neon-green);
+        }
+       
+        .room-name {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+            margin-top: 0.3rem;
+        }
+       
+        .progress-bar { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+       
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+       
+        .progress-dot.completed {
+            background: var(--neon-green);
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+       
+        .progress-dot.current {
+            background: var(--neon-cyan);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            animation: pulse 1.5s infinite;
+        }
+       
+        /* ARIA Messages */
+        #ariaMessageContainer {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            max-width: 600px;
+            width: 90%;
+        }
+       
+        .aria-message {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.98), rgba(20, 0, 40, 0.98));
+            border: 2px solid var(--neon-cyan);
+            border-radius: 15px;
+            padding: 1.2rem 1.8rem;
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.4);
+            animation: ariaSlideIn 0.4s ease-out;
+            width: 100%;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+       
+        @keyframes ariaSlideIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+       
+        .aria-message.removing { animation: ariaSlideOut 0.3s ease-in forwards; }
+       
+        @keyframes ariaSlideOut {
+            to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+        }
+       
+        .aria-header { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.8rem; }
+       
+        .aria-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            animation: ariaFloat 2s ease-in-out infinite;
+        }
+       
+        @keyframes ariaFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+       
+        .aria-name { font-family: 'Orbitron', monospace; font-size: 0.9rem; color: var(--neon-cyan); font-weight: 600; }
+        .aria-text { font-size: 1.05rem; line-height: 1.7; color: #fff; }
+        .aria-dismiss { font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-top: 0.8rem; text-align: right; }
+       
+        /* Help Button */
+        #helpButton {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            border: none;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 25px rgba(0, 245, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+       
+        #helpButton:hover { transform: scale(1.1); }
+       
+        /* Crosshair */
+        .crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 101;
+        }
+       
+        .crosshair-dot {
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #fff;
+        }
+       
+        .crosshair.interactive .crosshair-dot {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 15px var(--neon-cyan);
+            transform: scale(1.5);
+        }
+       
+        /* Interact Prompt */
+        .interact-prompt {
+            position: fixed;
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            font-family: 'Share Tech Mono', monospace;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 102;
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.3);
+        }
+       
+        .interact-prompt.visible { opacity: 1; }
+       
+        .interact-key {
+            background: var(--neon-cyan);
+            color: #000;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+       
+        /* Puzzle Modal */
+        #puzzleModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            cursor: default;
+        }
+       
+        #puzzleModal.visible { display: flex; }
+       
+        .puzzle-container {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border: 2px solid var(--border-glow);
+            border-radius: 20px;
+            max-width: 950px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 0 60px rgba(0, 245, 255, 0.3);
+        }
+       
+        .puzzle-header {
+            background: linear-gradient(90deg, rgba(0, 245, 255, 0.2), rgba(255, 0, 255, 0.2));
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-glow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+       
+        .puzzle-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--neon-cyan);
+        }
+       
+        .puzzle-close {
+            background: none;
+            border: 2px solid rgba(255,255,255,0.3);
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+       
+        .puzzle-close:hover { background: rgba(255, 51, 85, 0.3); border-color: var(--neon-red); }
+       
+        .puzzle-body { padding: 2rem; }
+       
+        .puzzle-prompt {
+            background: rgba(0, 245, 255, 0.1);
+            border-left: 4px solid var(--neon-cyan);
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+       
+        .puzzle-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+       
+        .puzzle-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+       
+        .puzzle-btn.primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            border: none;
+            color: #000;
+            font-weight: 600;
+        }
+       
+        .puzzle-btn.primary:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(0, 245, 255, 0.5); }
+       
+        .puzzle-btn.secondary {
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+        }
+       
+        .puzzle-btn.secondary:hover { background: rgba(0, 245, 255, 0.1); }
+       
+        /* Code Display */
+        .code-display {
+            background: #1a1a2e;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+       
+        .code-comment { color: #6a9955; }
+        .code-keyword { color: #569cd6; }
+        .code-type { color: #4ec9b0; }
+        .code-function { color: #dcdcaa; }
+       
+        .puzzle-options { display: flex; flex-direction: column; gap: 0.8rem; }
+       
+        .puzzle-option {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
+       
+        .puzzle-option:hover { background: rgba(0, 245, 255, 0.1); border-color: var(--neon-cyan); transform: translateX(5px); }
+        .puzzle-option.selected { background: rgba(0, 245, 255, 0.2); border-color: var(--neon-cyan); box-shadow: 0 0 20px rgba(0, 245, 255, 0.3); }
+        .puzzle-option.correct { background: rgba(0, 255, 136, 0.2); border-color: var(--neon-green); }
+        .puzzle-option.incorrect { background: rgba(255, 51, 85, 0.2); border-color: var(--neon-red); }
+       
+        .option-letter {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+       
+        /* ============================================ */
+        /* MINIGAME 2: SQL BUILDER - Drag & Drop */
+        /* ============================================ */
+        .sql-game-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+       
+        .sql-pieces {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            min-height: 80px;
+            justify-content: center;
+        }
+       
+        .sql-piece {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+            color: #000;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-weight: bold;
+            cursor: grab;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+       
+        .sql-piece:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(0, 245, 255, 0.5); }
+        .sql-piece.dragging { opacity: 0.5; cursor: grabbing; }
+        .sql-piece.placed { opacity: 0.3; pointer-events: none; }
+       
+        .sql-piece.keyword { background: linear-gradient(135deg, #ff00ff, #ff44aa); }
+        .sql-piece.column { background: linear-gradient(135deg, #00f5ff, #00aaff); }
+        .sql-piece.table { background: linear-gradient(135deg, #00ff88, #00cc66); }
+        .sql-piece.condition { background: linear-gradient(135deg, #ff8800, #ffaa44); }
+        .sql-piece.order { background: linear-gradient(135deg, #ff3355, #ff6688); }
+       
+        .sql-build-area {
+            background: #1a1a2e;
+            border: 2px dashed var(--neon-cyan);
+            border-radius: 10px;
+            padding: 1.5rem;
+            min-height: 120px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+       
+        .sql-build-area.drag-over { border-color: var(--neon-green); background: rgba(0, 255, 136, 0.1); }
+       
+        .sql-build-area .sql-piece {
+            cursor: pointer;
+        }
+       
+        .sql-result {
+            background: #0a0a0a;
+            border: 1px solid var(--neon-green);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--neon-green);
+            min-height: 60px;
+        }
+       
+        .sql-target {
+            color: rgba(255,255,255,0.5);
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+       
+        /* ============================================ */
+        /* MINIGAME 3: FIREWALL DEFENSE */
+        /* ============================================ */
+        .firewall-game {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+       
+        .firewall-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+       
+        .port-slot {
+            background: #1a1a2e;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+       
+        .port-slot:hover { border-color: var(--neon-cyan); }
+        .port-slot.allow { border-color: var(--neon-green); background: rgba(0, 255, 136, 0.1); }
+        .port-slot.deny { border-color: var(--neon-red); background: rgba(255, 51, 85, 0.1); }
+        .port-slot.internal { border-color: var(--neon-orange); background: rgba(255, 136, 0, 0.1); }
+        .port-slot.admin { border-color: var(--neon-magenta); background: rgba(255, 0, 255, 0.1); }
+       
+        .port-number {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.5rem;
+            color: var(--neon-cyan);
+        }
+       
+        .port-service {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+        }
+       
+        .port-status {
+            font-family: 'Orbitron', monospace;
+            font-size: 0.75rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            margin-top: 0.5rem;
+        }
+       
+        .port-slot.allow .port-status { background: var(--neon-green); color: #000; }
+        .port-slot.deny .port-status { background: var(--neon-red); color: #fff; }
+        .port-slot.internal .port-status { background: var(--neon-orange); color: #000; }
+        .port-slot.admin .port-status { background: var(--neon-magenta); color: #000; }
+       
+        .firewall-legend {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+        }
+       
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+        }
+       
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+       
+        .attack-animation {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: var(--neon-red);
+            border-radius: 50%;
+            animation: attackPulse 0.5s ease-out;
+            pointer-events: none;
+        }
+       
+        @keyframes attackPulse {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
+        }
+       
+        /* ============================================ */
+        /* MINIGAME 4: HACKING TERMINAL */
+        /* ============================================ */
+        .terminal-game {
+            background: #0a0a0a;
+            border: 2px solid var(--neon-green);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+       
+        .terminal-header {
+            background: var(--neon-green);
+            color: #000;
+            padding: 0.5rem 1rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+       
+        .terminal-body {
+            padding: 1rem;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+       
+        .terminal-line { margin: 0.3rem 0; }
+        .terminal-line.system { color: var(--neon-cyan); }
+        .terminal-line.error { color: var(--neon-red); }
+        .terminal-line.success { color: var(--neon-green); }
+        .terminal-line.warning { color: var(--neon-orange); }
+        .terminal-line.user { color: var(--neon-yellow); }
+       
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+       
+        .terminal-prompt {
+            color: var(--neon-green);
+            font-weight: bold;
+        }
+       
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+       
+        .terminal-commands {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+       
+        .terminal-cmd-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 0.4rem 0.8rem;
+            border-radius: 5px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+       
+        .terminal-cmd-btn:hover {
+            background: var(--neon-green);
+            color: #000;
+        }
+       
+        .terminal-objectives {
+            background: rgba(0, 245, 255, 0.1);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+       
+        .objective-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.3rem 0;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+        }
+       
+        .objective-item.completed { color: var(--neon-green); text-decoration: line-through; }
+        .objective-item.pending { color: rgba(255,255,255,0.7); }
+       
+        /* ============================================ */
+        /* MINIGAME 5: API DEBUGGING (NEW LEVEL) */
+        /* ============================================ */
+        .api-debug-game {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+       
+        .api-request {
+            background: #1a1a2e;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+       
+        .api-request-header {
+            background: rgba(0, 245, 255, 0.2);
+            padding: 0.8rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
+       
+        .api-method {
+            background: var(--neon-green);
+            color: #000;
+            padding: 0.3rem 0.8rem;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+       
+        .api-method.post { background: var(--neon-orange); }
+        .api-method.put { background: var(--neon-cyan); }
+        .api-method.delete { background: var(--neon-red); color: #fff; }
+       
+        .api-url { color: rgba(255,255,255,0.8); }
+       
+        .api-body {
+            padding: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+        }
+       
+        .api-response {
+            background: #0a0a0a;
+            border-radius: 10px;
+            padding: 1rem;
+            font-family: 'Share Tech Mono', monospace;
+        }
+       
+        .api-status {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+       
+        .api-status.success { background: var(--neon-green); color: #000; }
+        .api-status.error { background: var(--neon-red); color: #fff; }
+       
+        .bug-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+       
+        .bug-option {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Share Tech Mono', monospace;
+        }
+       
+        .bug-option:hover { border-color: var(--neon-cyan); transform: translateY(-3px); }
+        .bug-option.selected { border-color: var(--neon-cyan); background: rgba(0, 245, 255, 0.1); }
+        .bug-option.correct { border-color: var(--neon-green); background: rgba(0, 255, 136, 0.2); }
+        .bug-option.incorrect { border-color: var(--neon-red); background: rgba(255, 51, 85, 0.2); }
+       
+        .bug-title {
+            color: var(--neon-cyan);
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+       
+        .bug-description {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+        }
+       
+        /* Pause & Victory Screens */
+        #pauseMenu, #victoryScreen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 400;
+            cursor: default;
+        }
+       
+        #pauseMenu.visible, #victoryScreen.visible { display: flex; }
+       
+        .pause-title, .victory-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 3rem;
+            color: var(--neon-cyan);
+            margin-bottom: 2rem;
+        }
+       
+        .victory-title {
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 2s infinite;
+        }
+       
+        .pause-menu-btn {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            padding: 1rem 3rem;
+            margin: 0.5rem;
+            background: transparent;
+            border: 2px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 250px;
+        }
+       
+        .pause-menu-btn:hover { background: var(--neon-cyan); color: #000; }
+       
+        .victory-subtitle { font-size: 1.5rem; color: rgba(255,255,255,0.8); margin-bottom: 2rem; }
+       
+        .victory-stats {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-green);
+            border-radius: 15px;
+            padding: 2rem 3rem;
+            margin-bottom: 2rem;
+        }
+       
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 3rem;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+       
+        .stat-label { color: rgba(255,255,255,0.6); }
+        .stat-value { font-family: 'Orbitron', monospace; color: var(--neon-cyan); }
+       
+        .certificate {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 245, 255, 0.1));
+            border: 2px solid var(--neon-green);
+            border-radius: 15px;
+            padding: 2rem 4rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+       
+        .certificate h3 { font-family: 'Orbitron', monospace; color: var(--neon-green); font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .certificate p { font-size: 1.5rem; color: #fff; }
+       
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 600;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            max-width: 500px;
+        }
+       
+        .notification.visible { opacity: 1; }
+        .notification.success { border: 2px solid var(--neon-green); }
+        .notification.error { border: 2px solid var(--neon-red); }
+        .notification.info { border: 2px solid var(--neon-cyan); }
+       
+        .notification-icon { font-size: 1.5rem; }
+        .notification.success .notification-icon { color: var(--neon-green); }
+        .notification.error .notification-icon { color: var(--neon-red); }
+        .notification.info .notification-icon { color: var(--neon-cyan); }
+       
+        /* Instructions */
+        #instructionsOverlay {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            z-index: 100;
+            opacity: 0.8;
+        }
+       
+        .instruction-item { display: flex; align-items: center; gap: 0.8rem; margin: 0.3rem 0; }
+       
+        .instruction-key {
+            background: rgba(0, 245, 255, 0.2);
+            border: 1px solid var(--neon-cyan);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            min-width: 30px;
+            text-align: center;
+        }
+   
+/* ============================================
+   DAM ESCAPE v4.0 - ESTILOS NUEVOS NIVELES
+   Añadir estos estilos al <style> existente
+   ============================================ */
+
+/* ============================================
+   NIVEL 6: MEMORY OVERFLOW
+   ============================================ */
+.memory-game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+}
+
+.memory-round-info {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    color: var(--neon-cyan);
+    text-align: center;
+}
+
+.memory-lives {
+    font-size: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.memory-display {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    min-height: 120px;
+    padding: 2rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    border: 2px solid var(--neon-cyan);
+    width: 100%;
+}
+
+.memory-card {
+    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta));
+    color: #000;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: bold;
+    animation: memoryPulse 0.5s ease-out;
+    box-shadow: 0 0 20px rgba(0, 245, 255, 0.5);
+}
+
+@keyframes memoryPulse {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.memory-status {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    color: var(--neon-yellow);
+    animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.memory-options {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.8rem;
+    width: 100%;
+}
+
+.memory-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    padding: 0.8rem 1.2rem;
+    border-radius: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.memory-btn:hover {
+    background: rgba(0, 245, 255, 0.2);
+    border-color: var(--neon-cyan);
+    transform: translateY(-2px);
+}
+
+.memory-btn.correct {
+    background: rgba(0, 255, 136, 0.3);
+    border-color: var(--neon-green);
+    animation: correctFlash 0.3s ease;
+}
+
+.memory-btn.wrong {
+    background: rgba(255, 51, 85, 0.3);
+    border-color: var(--neon-red);
+    animation: shake 0.3s ease;
+}
+
+@keyframes correctFlash {
+    0%, 100% { box-shadow: 0 0 0 rgba(0, 255, 136, 0); }
+    50% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.8); }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.memory-sequence-display {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.sequence-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.sequence-dot.filled {
+    background: var(--neon-green);
+    box-shadow: 0 0 10px var(--neon-green);
+}
+
+.sequence-dot.current {
+    background: var(--neon-cyan);
+    animation: pulse 0.5s infinite;
+}
+
+/* ============================================
+   NIVEL 7: THE CODE MAZE
+   ============================================ */
+.maze-game {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    background: #000;
+    border: 2px solid var(--neon-green);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.maze-hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    z-index: 10;
+    font-family: 'Orbitron', monospace;
+}
+
+.maze-timer {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    color: var(--neon-cyan);
+    border: 1px solid var(--neon-cyan);
+}
+
+.maze-fragments {
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    color: var(--neon-green);
+    border: 1px solid var(--neon-green);
+}
+
+.maze-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    color: var(--neon-yellow);
+    border: 1px solid var(--neon-yellow);
+    font-family: 'Share Tech Mono', monospace;
+    z-index: 10;
+    max-width: 80%;
+    text-align: center;
+}
+
+.maze-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.maze-minimap {
+    position: absolute;
+    top: 50px;
+    right: 10px;
+    width: 120px;
+    height: 120px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 5px;
+}
+
+.maze-warning {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 0, 0, 0.3);
+    padding: 1rem 2rem;
+    border-radius: 10px;
+    border: 2px solid var(--neon-red);
+    color: var(--neon-red);
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    animation: warningPulse 0.5s infinite;
+    z-index: 20;
+    display: none;
+}
+
+.maze-warning.visible {
+    display: block;
+}
+
+@keyframes warningPulse {
+    0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.05); }
+}
+
+/* ============================================
+   NIVEL 8: BUG HUNTER
+   ============================================ */
+.bughunter-game {
+    position: relative;
+    width: 100%;
+    height: 450px;
+    background: linear-gradient(180deg, #0d1117 0%, #1a1a2e 100%);
+    border: 2px solid var(--neon-red);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: crosshair;
+}
+
+.bughunter-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10;
+    font-family: 'Orbitron', monospace;
+}
+
+.bughunter-score {
+    color: var(--neon-cyan);
+    font-size: 1.2rem;
+}
+
+.bughunter-lives {
+    color: var(--neon-red);
+    font-size: 1.2rem;
+}
+
+.bughunter-phase {
+    color: var(--neon-yellow);
+    font-size: 1rem;
+}
+
+.code-line {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem 1.5rem;
+    background: rgba(30, 30, 50, 0.9);
+    border-radius: 5px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    white-space: nowrap;
+    transition: top 0.05s linear;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.code-line:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.code-line.bug {
+    border-left: 3px solid var(--neon-red);
+}
+
+.code-line.bug:hover {
+    background: rgba(255, 51, 85, 0.2);
+    border-color: var(--neon-red);
+}
+
+.code-line.hit {
+    animation: bugHit 0.3s ease forwards;
+}
+
+@keyframes bugHit {
+    0% { transform: translateX(-50%) scale(1); opacity: 1; }
+    50% { transform: translateX(-50%) scale(1.2); background: var(--neon-green); }
+    100% { transform: translateX(-50%) scale(0); opacity: 0; }
+}
+
+.code-line.miss {
+    animation: codeMiss 0.3s ease;
+}
+
+@keyframes codeMiss {
+    0%, 100% { background: rgba(30, 30, 50, 0.9); }
+    50% { background: rgba(255, 51, 85, 0.5); }
+}
+
+.bug-escaped {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--neon-red);
+    font-family: 'Orbitron', monospace;
+    font-size: 1.2rem;
+    animation: escapeWarning 0.5s ease;
+    z-index: 15;
+}
+
+@keyframes escapeWarning {
+    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    50% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+
+.bughunter-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.bughunter-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-cyan), var(--neon-green));
+    transition: width 0.3s ease;
+}
+
+/* ============================================
+   NIVEL 9: PACKET DEFENSE
+   ============================================ */
+.packet-game {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.packet-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    font-family: 'Orbitron', monospace;
+}
+
+.packet-score {
+    color: var(--neon-cyan);
+    font-size: 1.3rem;
+}
+
+.packet-health {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.health-bar {
+    width: 20px;
+    height: 25px;
+    background: var(--neon-green);
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.health-bar.lost {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.packet-wave {
+    color: var(--neon-yellow);
+    font-size: 1rem;
+}
+
+.packet-arena {
+    position: relative;
+    height: 200px;
+    background: linear-gradient(90deg, rgba(0, 245, 255, 0.1) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(255, 51, 85, 0.1) 100%);
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.server-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4rem;
+    z-index: 5;
+    animation: serverPulse 2s infinite;
+}
+
+@keyframes serverPulse {
+    0%, 100% { filter: drop-shadow(0 0 10px var(--neon-cyan)); }
+    50% { filter: drop-shadow(0 0 30px var(--neon-cyan)); }
+}
+
+.packet {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+    border: 2px solid var(--neon-cyan);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    animation: packetMove 3s linear;
+    z-index: 3;
+}
+
+.packet.from-left {
+    left: -70px;
+    animation: packetFromLeft 3s linear forwards;
+}
+
+.packet.from-right {
+    right: -70px;
+    animation: packetFromRight 3s linear forwards;
+}
+
+@keyframes packetFromLeft {
+    0% { left: -70px; }
+    100% { left: calc(50% - 35px); }
+}
+
+@keyframes packetFromRight {
+    0% { right: -70px; }
+    100% { right: calc(50% - 35px); }
+}
+
+.packet-content {
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid var(--neon-cyan);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.packet-description {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: #fff;
+}
+
+.packet-timer {
+    font-family: 'Orbitron', monospace;
+    color: var(--neon-yellow);
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.packet-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.packet-btn {
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Orbitron', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.packet-btn.allow {
+    background: var(--neon-green);
+    color: #000;
+}
+
+.packet-btn.quarantine {
+    background: var(--neon-yellow);
+    color: #000;
+}
+
+.packet-btn.deny {
+    background: var(--neon-red);
+    color: #fff;
+}
+
+.packet-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px currentColor;
+}
+
+/* ============================================
+   NIVEL 10: THE GLITCH (BOSS)
+   ============================================ */
+.boss-game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    position: relative;
+}
+
+.boss-container {
+    width: 100%;
+    background: linear-gradient(180deg, #0a0a0a 0%, #1a0a1a 100%);
+    border: 2px solid var(--neon-magenta);
+    border-radius: 15px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.boss-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 0, 255, 0.03) 2px,
+        rgba(255, 0, 255, 0.03) 4px
+    );
+    pointer-events: none;
+    animation: scanlines 0.1s linear infinite;
+}
+
+@keyframes scanlines {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(4px); }
+}
+
+.boss-avatar {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto 1rem;
+    background: linear-gradient(135deg, #ff00ff, #00ffff);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 4rem;
+    animation: glitchAvatar 2s infinite;
+    position: relative;
+}
+
+@keyframes glitchAvatar {
+    0%, 90%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+    92% { transform: translate(-5px, 2px); filter: hue-rotate(90deg); }
+    94% { transform: translate(5px, -2px); filter: hue-rotate(180deg); }
+    96% { transform: translate(-3px, -1px); filter: hue-rotate(270deg); }
+    98% { transform: translate(3px, 1px); filter: hue-rotate(360deg); }
+}
+
+.boss-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    color: var(--neon-magenta);
+    text-align: center;
+    text-shadow: 0 0 10px var(--neon-magenta);
+    margin-bottom: 0.5rem;
+}
+
+.boss-speech {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    color: #fff;
+    text-align: center;
+    font-style: italic;
+    margin-bottom: 1.5rem;
+    min-height: 50px;
+}
+
+.boss-phase {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.phase-indicator {
+    width: 40px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.phase-indicator.active {
+    background: var(--neon-magenta);
+    box-shadow: 0 0 10px var(--neon-magenta);
+}
+
+.phase-indicator.complete {
+    background: var(--neon-green);
+}
+
+.boss-mistakes {
+    text-align: center;
+    font-family: 'Orbitron', monospace;
+    color: var(--neon-red);
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.boss-question {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.boss-question-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2rem;
+    color: var(--neon-cyan);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.boss-timer {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    color: var(--neon-yellow);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.boss-timer.critical {
+    color: var(--neon-red);
+    animation: timerPanic 0.3s infinite;
+}
+
+@keyframes timerPanic {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.boss-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.boss-option {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Share Tech Mono', monospace;
+    text-align: center;
+}
+
+.boss-option:hover {
+    background: rgba(255, 0, 255, 0.1);
+    border-color: var(--neon-magenta);
+}
+
+.boss-option.correct {
+    background: rgba(0, 255, 136, 0.2);
+    border-color: var(--neon-green);
+}
+
+.boss-option.wrong {
+    background: rgba(255, 51, 85, 0.2);
+    border-color: var(--neon-red);
+}
+
+/* Speed Coding Input */
+.boss-code-input {
+    background: #0a0a0a;
+    border: 2px solid var(--neon-green);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2rem;
+    color: var(--neon-green);
+    width: 100%;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.boss-code-input:focus {
+    outline: none;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+/* CELDA DE PRISIÓN */
+.cell-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+}
+
+.cell-overlay.visible {
+    display: flex;
+}
+
+.cell-container {
+    background: linear-gradient(135deg, #1a0a0a 0%, #0a0a1a 100%);
+    border: 4px solid var(--neon-red);
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    position: relative;
+    animation: cellAppear 0.5s ease;
+}
+
+@keyframes cellAppear {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.cell-bars {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 30px,
+        rgba(255, 51, 85, 0.3) 30px,
+        rgba(255, 51, 85, 0.3) 32px
+    );
+    pointer-events: none;
+    border-radius: 20px;
+}
+
+.cell-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.5rem;
+    color: var(--neon-red);
+    text-align: center;
+    margin-bottom: 1rem;
+    animation: glitchText 0.5s infinite;
+}
+
+@keyframes glitchText {
+    0%, 90%, 100% { text-shadow: 0 0 10px var(--neon-red); }
+    92%, 96% { text-shadow: -3px 0 var(--neon-cyan), 3px 0 var(--neon-magenta); }
+}
+
+.cell-lock {
+    background: #0a0a0a;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.cell-lock-title {
+    font-family: 'Orbitron', monospace;
+    color: var(--neon-cyan);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.cell-code {
+    font-family: 'Share Tech Mono', monospace;
+    background: #1a1a2e;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    line-height: 1.8;
+}
+
+.cell-hint {
+    color: var(--neon-yellow);
+    font-style: italic;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.cell-input {
+    width: 100%;
+    background: #0a0a0a;
+    border: 2px solid var(--neon-green);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2rem;
+    color: var(--neon-green);
+    text-align: center;
+}
+
+.cell-input:focus {
+    outline: none;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+}
+
+.cell-timer {
+    font-family: 'Orbitron', monospace;
+    font-size: 2rem;
+    color: var(--neon-red);
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.cell-attempts {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 0.5rem;
+}
+
+.cell-glitch-text {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--neon-magenta);
+    text-align: center;
+    margin-top: 1rem;
+    font-style: italic;
+}
+
+</style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen">
+        <h1 class="loading-title">DAM ESCAPE</h1>
+        <p class="loading-subtitle">English for Developers</p>
+        <div class="loading-bar-container">
+            <div class="loading-bar" id="loadingBar"></div>
+        </div>
+        <p class="loading-text" id="loadingText">Initializing systems...</p>
+    </div>
+   
+    <!-- Start Screen -->
+    <div id="startScreen">
+        <h1 class="start-logo">DAM ESCAPE</h1>
+        <p class="start-tagline">English for Developers</p>
+        <p class="start-description">
+            You've been trapped inside <strong>NEXUS LABS</strong>, a high-tech virtual training facility.
+            Complete <strong>10 interactive challenges</strong> testing your technical English skills to escape!
+            Each room features a unique minigame. Your AI companion <strong>ARIA</strong> will guide you.
+        </p>
+        <div class="controls-preview">
+            <h3>⌨️ CONTROLS</h3>
+            <div class="control-row">
+                <div class="control-item"><span class="key">WASD</span> Move</div>
+                <div class="control-item"><span class="key">Mouse</span> Look</div>
+                <div class="control-item"><span class="key">E</span> Interact</div>
+                <div class="control-item"><span class="key">H</span> Help</div>
+                <div class="control-item"><span class="key">ESC</span> Pause</div>
+            </div>
+        </div>
+        <button class="start-button" id="startButton">▶ START GAME</button>
+    </div>
+   
+    <!-- Game Container -->
+    <div id="gameContainer"></div>
+   
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-top">
+            <div class="hud-panel timer" id="timer">
+                <span>⏱</span>
+                <span id="timerValue">30:00</span>
+            </div>
+            <div class="hud-panel">
+                <div class="room-indicator">
+                    <span id="roomProgress">Room 1/5</span>
+                    <div class="room-name" id="roomName">NEXUS Lobby</div>
+                </div>
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+        <div id="instructionsOverlay">
+            <div class="instruction-item"><span class="instruction-key">E</span> Interact</div>
+            <div class="instruction-item"><span class="instruction-key">H</span> Ask ARIA</div>
+        </div>
+    </div>
+   
+    <!-- Crosshair -->
+    <div class="crosshair" id="crosshair"><div class="crosshair-dot"></div></div>
+   
+    <!-- Interact Prompt -->
+    <div class="interact-prompt" id="interactPrompt">
+        <span class="interact-key">E</span>
+        <span id="interactText">Interact</span>
+    </div>
+   
+    <!-- ARIA Messages -->
+    <div id="ariaMessageContainer"></div>
+   
+    <!-- Help Button -->
+    <button id="helpButton" style="display: none;">?</button>
+   
+    <!-- Puzzle Modal -->
+    <div id="puzzleModal">
+        <div class="puzzle-container" id="puzzleContainer"></div>
+    </div>
+   
+    <!-- Pause Menu -->
+    <div id="pauseMenu">
+        <h2 class="pause-title">⏸ PAUSED</h2>
+        <button class="pause-menu-btn" id="resumeBtn">▶ Resume</button>
+        <button class="pause-menu-btn" id="restartBtn">↺ Restart</button>
+    </div>
+   
+    <!-- Victory Screen -->
+    <div id="victoryScreen">
+        <h1 class="victory-title" id="victoryTitle">🎉 ESCAPE COMPLETE!</h1>
+        <p class="victory-subtitle" id="victorySubtitle">Developer Certification Approved</p>
+        <div class="certificate">
+            <h3>✓ NEXUS LABS DEVELOPER CERTIFICATION</h3>
+            <p>Technical English Proficiency Verified</p>
+        </div>
+        <div class="victory-stats">
+            <div class="stat-row">
+                <span class="stat-label">Time Remaining:</span>
+                <span class="stat-value" id="finalTime">--:--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Puzzles Completed:</span>
+                <span class="stat-value" id="finalPuzzles">0/5</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Hints Used:</span>
+                <span class="stat-value" id="finalHints">0</span>
+            </div>
+        </div>
+        <button class="start-button" id="playAgainBtn">▶ PLAY AGAIN</button>
+    </div>
+   
+   
+    <!-- Cell Overlay for Boss -->
+    <div class="cell-overlay" id="cellOverlay">
+        <div class="cell-container">
+            <div class="cell-bars"></div>
+            <h2 class="cell-title">⛓️ CAPTURED BY THE GLITCH ⛓️</h2>
+            <div class="cell-lock">
+                <div class="cell-lock-title">🔒 CELL DOOR LOCK SYSTEM</div>
+                <pre class="cell-code" id="cellCode"></pre>
+                <div class="cell-hint" id="cellHint"></div>
+                <input type="text" class="cell-input" id="cellInput" placeholder="Type the answer..." onkeypress="if(event.key==='Enter')attemptEscape()">
+            </div>
+            <div class="cell-timer" id="cellTimer">30</div>
+            <div class="cell-attempts" id="cellAttempts">Attempts remaining: 2</div>
+            <div class="cell-glitch-text">"You'll never escape... unless you think!"</div>
+            <button class="puzzle-btn primary" onclick="attemptEscape()" style="margin-top: 1rem;">🔓 UNLOCK</button>
+        </div>
+    </div>
+
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <span class="notification-icon" id="notificationIcon">✓</span>
+        <span id="notificationText"></span>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+   
+    <script>
+    // ============================================
+    // DAM ESCAPE v4.0 - Ultimate Edition (10 Levels)
+    // ============================================
+
+    const GameState = { LOADING: 0, START: 1, PLAYING: 2, PUZZLE: 3, PAUSED: 4, VICTORY: 5 };
+
+    const state = {
+        current: GameState.LOADING,
+        currentRoom: 0,
+        puzzlesSolved: [false, false, false, false, false, false, false, false, false, false],
+        hintsUsed: 0,
+        timeRemaining: 30 * 60,
+        timerInterval: null,
+        currentInteractable: null,
+        roomEnterTime: 0
+    };
+
+    // 5 Rooms Configuration
+    const rooms = [
+        {
+            id: 'lobby', name: 'NEXUS Lobby', color: 0x1a1a2e, puzzleIndex: null,
+            intro: "Welcome to NEXUS LABS! I'm ARIA, your AI assistant. The facility is in lockdown. Complete 5 challenges to escape! Head to the glowing door to begin.",
+            hint: "Walk towards the glowing door ahead and press E to enter the first challenge room."
+        },
+        {
+            id: 'code_lab', name: 'Code Analysis Lab', color: 0x0d2137, puzzleIndex: 0,
+            intro: "Welcome to the Code Lab! Read the Java documentation carefully and identify which function verifies user identity.",
+            hint: "Look for words like 'validates', 'credentials', or 'authentication' in the comments. These indicate identity verification."
+        },
+        {
+            id: 'sql_room', name: 'Database Query Room', color: 0x1a2e0d, puzzleIndex: 1,
+            intro: "The Database Room! Drag and drop SQL pieces to build the correct query. Read the requirements carefully!",
+            hint: "SQL order: SELECT → columns → FROM → table → WHERE → conditions → ORDER BY → column DESC. Engineering + salary > 50000!"
+        },
+        {
+            id: 'firewall', name: 'Firewall Control Center', color: 0x2e1a0d, puzzleIndex: 2,
+            intro: "Firewall Control! Click each port to cycle through security settings. Match the requirements exactly!",
+            hint: "80 & 443 = ANY (web). 3306 = INTERNAL (database). 22 = ADMIN (SSH). * = DENY (block everything else)."
+        },
+        {
+            id: 'terminal', name: 'Hacking Terminal', color: 0x2e0d2e, puzzleIndex: 3,
+            intro: "The Terminal Room! Type commands to complete objectives. Read the system messages and respond correctly!",
+            hint: "Follow the prompts. Type the exact commands shown or use the command buttons. Complete all 3 objectives!"
+        },
+        {
+            id: 'api_debug', name: 'API Debug Chamber', color: 0x0d2e2e, puzzleIndex: 4,
+            intro: "Final Challenge! Debug the API errors by identifying the correct problem. Read the error messages carefully!",
+            hint: "Check the status code and error message. 401 = auth problem. 404 = not found. 500 = server error. Match the bug!"
+        },
+        // ============================================
+        // NUEVAS SALAS v4.0
+        // ============================================
+        {
+            id: 'memory', name: 'Memory Overflow', color: 0x1a0d2e, puzzleIndex: 5,
+            intro: "Welcome to Memory Overflow! Watch the command sequence carefully, then repeat it in the correct order. Your memory will be tested!",
+            hint: "Focus on the first and last items - they're easier to remember. Build mental associations!"
+        },
+        {
+            id: 'maze', name: 'The Code Maze', color: 0x0d1a0d, puzzleIndex: 6,
+            intro: "You've entered The Code Maze! Find all 4 code fragments while avoiding the bugs. Use arrow keys to navigate. You have 2 minutes!",
+            hint: "Check your minimap! Fragments glow - head towards the light. Bugs patrol in patterns."
+        },
+        {
+            id: 'bughunter', name: 'Bug Hunter', color: 0x2e0d0d, puzzleIndex: 7,
+            intro: "Time to hunt bugs! Click on the code lines with errors before they escape. Don't click correct code or you'll lose points!",
+            hint: "Look for typos: 'funtion', 'consle', 'lenght'. Wrong operators like '=' instead of '=='."
+        },
+        {
+            id: 'packets', name: 'Packet Defense', color: 0x0d2e2e, puzzleIndex: 8,
+            intro: "Defend your server! Read each packet description and decide: ALLOW legitimate traffic, DENY attacks, QUARANTINE suspicious activity.",
+            hint: "SQL injection, brute force = DENY. Valid auth, internal queries = ALLOW. Unusual patterns = QUARANTINE."
+        },
+        {
+            id: 'boss', name: 'THE GLITCH', color: 0x2e0d2e, puzzleIndex: 9,
+            intro: "You face THE GLITCH - a corrupted AI! Answer quickly or be captured. If locked in a cell, hack the door code to escape!",
+            hint: "Stay calm, read carefully. If captured, the hints contain the answer. Think logically!"
+        }
+
+    ];
+
+    // Puzzle Data
+    // Función para obtener título de cualquier puzzle
+    function getNewPuzzleTitle(idx) {
+        const titles = {
+            0: "💻 Code Analysis",
+            1: "🗄️ SQL Query Builder",
+            2: "🔒 Firewall Configuration",
+            3: "💻 Hacking Terminal",
+            4: "🔧 API Debugger",
+            5: "🧠 Memory Overflow",
+            6: "🌀 The Code Maze",
+            7: "🎯 Bug Hunter",
+            8: "🛡️ Packet Defense",
+            9: "👾 THE GLITCH"
+        };
+        return titles[idx] || "Challenge";
+    }
+
+    const puzzles = [
+        // Puzzle 0: Code Analysis (Selection)
+        {
+            id: 'code_analysis', title: '💻 Code Analysis', type: 'selection',
+            content: `
+                <p style="color: var(--neon-cyan); margin-bottom: 1rem;">📖 Read each function's JavaDoc and find the one that <strong>verifies user identity</strong>.</p>
+                <div class="code-display">
+                    <div><span class="code-comment">/** FUNCTION A - authenticateUser */</span></div>
+                    <div><span class="code-comment"> * Validates user credentials against the database.</span></div>
+                    <div><span class="code-comment"> * Returns true if authentication is successful.</span></div>
+                    <div><span class="code-keyword">public boolean</span> <span class="code-function">authenticateUser</span>(String user, String pass)</div>
+                </div>
+                <div class="code-display">
+                    <div><span class="code-comment">/** FUNCTION B - calculateTax */</span></div>
+                    <div><span class="code-comment"> * Calculates total price with 21% VAT.</span></div>
+                    <div><span class="code-keyword">public double</span> <span class="code-function">calculateTax</span>(double subtotal)</div>
+                </div>
+                <div class="code-display">
+                    <div><span class="code-comment">/** FUNCTION C - sendEmail */</span></div>
+                    <div><span class="code-comment"> * Sends notification email via SMTP.</span></div>
+                    <div><span class="code-keyword">public void</span> <span class="code-function">sendEmail</span>(String to, String msg)</div>
+                </div>
+                <div class="puzzle-prompt">🔐 Which function <strong>verifies user identity</strong>?</div>
+            `,
+            options: [
+                { id: 'A', text: 'authenticateUser - Validates credentials', correct: true },
+                { id: 'B', text: 'calculateTax - Calculates prices', correct: false },
+                { id: 'C', text: 'sendEmail - Sends messages', correct: false }
+            ],
+            success: "🎉 Correct! 'Authenticate' means verify identity!",
+            fail: "❌ Look for 'validates credentials' or 'authentication'."
+        },
+        // Puzzle 1: SQL Builder (Drag & Drop)
+        {
+            id: 'sql_builder', title: '🗄️ SQL Query Builder', type: 'sql_drag',
+            target: "SELECT name, salary FROM employees WHERE department = 'Engineering' AND salary > 50000 ORDER BY salary DESC",
+            pieces: [
+                { text: 'SELECT', type: 'keyword' },
+                { text: 'name, salary', type: 'column' },
+                { text: 'FROM', type: 'keyword' },
+                { text: 'employees', type: 'table' },
+                { text: 'WHERE', type: 'keyword' },
+                { text: "department = 'Engineering'", type: 'condition' },
+                { text: 'AND', type: 'keyword' },
+                { text: 'salary > 50000', type: 'condition' },
+                { text: 'ORDER BY', type: 'keyword' },
+                { text: 'salary DESC', type: 'order' }
+            ],
+            distractors: [
+                { text: 'id, name', type: 'column' },
+                { text: 'projects', type: 'table' },
+                { text: 'salary < 50000', type: 'condition' },
+                { text: 'salary ASC', type: 'order' }
+            ],
+            success: "🎉 Query built correctly! Perfect SQL skills!",
+            fail: "❌ Check the order: SELECT cols FROM table WHERE conditions ORDER BY col DESC"
+        },
+        // Puzzle 2: Firewall (Click to cycle)
+        {
+            id: 'firewall', title: '🔒 Firewall Configuration', type: 'firewall_click',
+            ports: [
+                { port: '80', service: 'HTTP', correct: 'allow' },
+                { port: '443', service: 'HTTPS', correct: 'allow' },
+                { port: '3306', service: 'MySQL', correct: 'internal' },
+                { port: '22', service: 'SSH', correct: 'admin' },
+                { port: '*', service: 'Other', correct: 'deny' }
+            ],
+            success: "🎉 Firewall configured! Network is secure!",
+            fail: "❌ Check: 80/443=ALLOW, 3306=INTERNAL, 22=ADMIN, *=DENY"
+        },
+        // Puzzle 3: Terminal (Command input)
+        {
+            id: 'terminal', title: '💻 Hacking Terminal', type: 'terminal',
+            objectives: [
+                { cmd: 'scan network', description: 'Scan the network for vulnerabilities', response: 'Network scan complete. Found 3 devices.' },
+                { cmd: 'decrypt file', description: 'Decrypt the encrypted config file', response: 'File decrypted successfully. Password: NEXUS2024' },
+                { cmd: 'unlock exit', description: 'Unlock the emergency exit', response: 'Exit unlocked! Access granted.' }
+            ],
+            success: "🎉 All systems hacked! Terminal master!",
+            fail: "❌ Type the correct commands to complete objectives."
+        },
+        // Puzzle 4: API Debug (Bug finding)
+        {
+            id: 'api_debug', title: '🔧 API Debugger', type: 'api_debug',
+            scenarios: [
+                {
+                    method: 'POST', url: '/api/users/login',
+                    body: '{ "username": "admin", "password": "" }',
+                    status: 401, error: 'Unauthorized: Invalid credentials',
+                    bugs: [
+                        { id: 'A', title: 'Empty Password', desc: 'Password field is empty', correct: true },
+                        { id: 'B', title: 'Wrong URL', desc: 'Endpoint path is incorrect', correct: false },
+                        { id: 'C', title: 'Missing Header', desc: 'Content-Type not set', correct: false },
+                        { id: 'D', title: 'Server Down', desc: 'Backend not responding', correct: false }
+                    ]
+                },
+                {
+                    method: 'GET', url: '/api/users/99999',
+                    body: null,
+                    status: 404, error: 'Not Found: User does not exist',
+                    bugs: [
+                        { id: 'A', title: 'Auth Error', desc: 'Token expired', correct: false },
+                        { id: 'B', title: 'Invalid User ID', desc: 'User 99999 not in database', correct: true },
+                        { id: 'C', title: 'Rate Limited', desc: 'Too many requests', correct: false },
+                        { id: 'D', title: 'CORS Error', desc: 'Cross-origin blocked', correct: false }
+                    ]
+                },
+                {
+                    method: 'PUT', url: '/api/config/database',
+                    body: '{ "host": "localhost", "port": "not_a_number" }',
+                    status: 500, error: 'Internal Server Error: Invalid port format',
+                    bugs: [
+                        { id: 'A', title: 'Wrong Host', desc: 'Hostname is incorrect', correct: false },
+                        { id: 'B', title: 'Missing Field', desc: 'Required field missing', correct: false },
+                        { id: 'C', title: 'Type Error', desc: 'Port should be number, not string', correct: true },
+                        { id: 'D', title: 'Permission', desc: 'User lacks write access', correct: false }
+                    ]
+                }
+            ],
+            success: "🎉 All bugs found! Master debugger!",
+            fail: "❌ Read the error message and status code carefully."
+        }
+    ];
+
+    // Three.js Variables
+    let scene, camera, renderer;
+    let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+    let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+    let interactables = [];
+    let roomObjects = [];
+    let isPointerLocked = false;
+
+    // Minigame state
+    let sqlBuiltQuery = [];
+    let firewallStates = {};
+    let terminalObjectives = [false, false, false];
+    let apiCurrentScenario = 0;
+    let apiCorrectAnswers = 0;
+
+/* ============================================
+   DAM ESCAPE v4.0 - NUEVOS NIVELES (JavaScript)
+   Añadir este código al script existente
+   ============================================ */
+
+// ============================================
+// CONFIGURACIÓN DE NUEVOS NIVELES
+// ============================================
+
+// newRooms ya integradas en el array principal
+
+// ============================================
+// NIVEL 6: MEMORY OVERFLOW - Datos
+// ============================================
+const memoryCommands = {
+    git: ['git commit', 'git push', 'git pull', 'git merge', 'git branch', 'git checkout', 'git clone', 'git stash'],
+    npm: ['npm install', 'npm start', 'npm test', 'npm build', 'npm update', 'npm init', 'npm run dev', 'npm publish'],
+    docker: ['docker run', 'docker build', 'docker pull', 'docker push', 'docker stop', 'docker exec', 'docker ps', 'docker logs'],
+    sql: ['SELECT *', 'INSERT INTO', 'UPDATE SET', 'DELETE FROM', 'JOIN ON', 'GROUP BY', 'ORDER BY', 'WHERE'],
+    linux: ['ls -la', 'cd ..', 'mkdir dir', 'rm -rf', 'chmod 755', 'grep text', 'cat file', 'sudo apt']
+};
+
+const memoryRounds = [
+    { count: 3, showTime: 3000, category: 'git' },
+    { count: 4, showTime: 2500, category: 'npm' },
+    { count: 5, showTime: 2000, category: 'docker' },
+    { count: 6, showTime: 1500, category: 'sql' },
+    { count: 7, showTime: 1200, category: 'linux' }
+];
+
+// ============================================
+// NIVEL 7: CODE MAZE - Datos
+// ============================================
+const mazeConfig = {
+    width: 12,
+    height: 12,
+    timeLimit: 120, // 2 minutos
+    fragmentCount: 4,
+    bugCount: 3,
+    fragmentHints: [
+        "The next fragment glows in the NORTHEAST...",
+        "Search the SOUTHERN dead ends...",
+        "The CENTER holds your prize...",
+        "EXIT awaits in the NORTHWEST!"
+    ]
+};
+
+// ============================================
+// NIVEL 8: BUG HUNTER - Datos
+// ============================================
+const codeLines = {
+    correct: [
+        'let users = [];',
+        'const API_URL = "https://api.com";',
+        'function calculate(a, b) {',
+        '    return a + b;',
+        '}',
+        'for (let i = 0; i < 10; i++) {',
+        '    console.log(i);',
+        'if (user.isAdmin === true) {',
+        'const result = await fetch(url);',
+        'export default App;',
+        'import React from "react";',
+        'this.setState({ loading: true });',
+        'array.map(item => item.id);',
+        'document.getElementById("app");',
+        'JSON.parse(response);',
+        'localStorage.setItem("token", jwt);'
+    ],
+    bugs: [
+        { code: 'funtion calculate(x) {', error: 'funtion → function' },
+        { code: 'consle.log("Hello");', error: 'consle → console' },
+        { code: 'array.lenght;', error: 'lenght → length' },
+        { code: 'if (x = 5) {', error: '= should be ==' },
+        { code: 'Let x = 10;', error: 'Let → let' },
+        { code: 'retrun result;', error: 'retrun → return' },
+        { code: 'documnet.write("Hi");', error: 'documnet → document' },
+        { code: 'for (let i = 0 i < 5; i++)', error: 'missing ;' },
+        { code: 'const name = "John;', error: 'unclosed string' },
+        { code: 'arry.push(item);', error: 'arry → array' },
+        { code: 'fucntion init() {', error: 'fucntion → function' },
+        { code: 'widnow.alert("Hi");', error: 'widnow → window' },
+        { code: 'if (x > 5 {', error: 'missing )' },
+        { code: 'elseif (y < 3) {', error: 'elseif → else if' },
+        { code: 'cosnt MAX = 100;', error: 'cosnt → const' },
+        { code: 'Object.kyes(obj);', error: 'kyes → keys' }
+    ]
+};
+
+const bugHunterPhases = [
+    { target: 50, speed: 3000, bugChance: 0.3 },
+    { target: 100, speed: 2500, bugChance: 0.35 },
+    { target: 150, speed: 2000, bugChance: 0.4 },
+    { target: 200, speed: 1500, bugChance: 0.45 }
+];
+
+// ============================================
+// NIVEL 9: PACKET DEFENSE - Datos
+// ============================================
+const packets = {
+    allow: [
+        "HTTP GET request from verified client IP",
+        "Database query from internal server 192.168.1.x",
+        "API call with valid JWT authentication token",
+        "Email from whitelisted domain @company.com",
+        "File upload from admin user (size: 2MB)",
+        "WebSocket connection from authenticated session",
+        "DNS lookup request for company domain",
+        "Health check ping from load balancer"
+    ],
+    deny: [
+        "SQL injection attempt: ' OR 1=1 --",
+        "Brute force: 500 failed logins from same IP",
+        "Malware signature detected in payload",
+        "DDoS pattern: 10000 requests/second",
+        "Unauthorized access attempt to /admin/config",
+        "Port scan detected from external IP",
+        "XSS attack: &lt;script&gt;alert('hack')&lt;/script&gt;",
+        "Remote code execution attempt detected"
+    ],
+    quarantine: [
+        "Large file transfer (500MB) from new user",
+        "Multiple failed login attempts (5 in 1 min)",
+        "Request from geo-blocked country",
+        "Unusual traffic pattern: 3AM activity spike",
+        "Expired SSL certificate on incoming request",
+        "Unknown user agent string detected",
+        "High-frequency API calls from single token",
+        "Attachment with unusual file extension .exe"
+    ]
+};
+
+const packetWaves = [
+    { count: 8, time: 3000 },
+    { count: 10, time: 2500 },
+    { count: 10, time: 2000 },
+    { count: 12, time: 1500 },
+    { count: 10, time: 1200 }
+];
+
+// ============================================
+// NIVEL 10: THE GLITCH (BOSS) - Datos
+// ============================================
+const bossPhases = {
+    phase1: {
+        name: "Interrogation",
+        questions: [
+            { q: "What does 'git pull' do?",
+              options: ["Upload changes", "Download & merge changes", "Delete branch", "Create commit"],
+              correct: 1 },
+            { q: "HTTP status 404 means?",
+              options: ["Server error", "Success", "Not found", "Unauthorized"],
+              correct: 2 },
+            { q: "What is encapsulation in OOP?",
+              options: ["Inheritance", "Hiding internal state", "Multiple instances", "Code reuse"],
+              correct: 1 },
+            { q: "SQL JOIN is used to?",
+              options: ["Delete data", "Combine tables", "Sort results", "Filter rows"],
+              correct: 1 },
+            { q: "What does API stand for?",
+              options: ["App Programming Interface", "Automated Program Integration", "Applied Programming", "App Process Interface"],
+              correct: 0 }
+        ],
+        timePerQuestion: 5
+    },
+    phase2: {
+        name: "Speed Coding",
+        challenges: [
+            { code: "function add(a, b) {\n    return ______;\n}", answer: "a + b", hint: "sum of parameters" },
+            { code: "const arr = [1, 2, 3];\narr.______(4);", answer: "push", hint: "add to end" },
+            { code: "if (x === 5) {\n    ______.log('yes');\n}", answer: "console", hint: "output to console" }
+        ],
+        timePerChallenge: 10
+    },
+    phase3: {
+        name: "Final Showdown",
+        questions: [
+            { q: "In REST, which HTTP method updates a resource?",
+              options: ["GET", "POST", "PUT", "DELETE"],
+              correct: 2 },
+            { q: "What's the time complexity of binary search?",
+              options: ["O(n)", "O(log n)", "O(n²)", "O(1)"],
+              correct: 1 },
+            { q: "Which port does HTTPS use by default?",
+              options: ["80", "443", "8080", "22"],
+              correct: 1 }
+        ],
+        timePerQuestion: 4
+    }
+};
+
+const cellPuzzles = [
+    {
+        code: 'function unlock(pass) {\n    if (pass === "______") {\n        return true;\n    }\n    return false;\n}',
+        hint: "The password is the opposite of 'lock'",
+        answer: "unlock"
+    },
+    {
+        code: 'const port = ______;\n// HTTP default port',
+        hint: "Web servers listen on this port (not HTTPS)",
+        answer: "80"
+    },
+    {
+        code: 'console.______("Escaped!");',
+        hint: "Method to output text to console",
+        answer: "log"
+    },
+    {
+        code: 'if (true && false) {\n    return "______";\n}',
+        hint: "true AND false equals?",
+        answer: "false"
+    },
+    {
+        code: 'const lang = "______";\n// Most popular web scripting language',
+        hint: "Not Java, but Java_____",
+        answer: "javascript"
+    }
+];
+
+// ============================================
+// ESTADO DE LOS NUEVOS MINIJUEGOS
+// ============================================
+let memoryState = {
+    currentRound: 0,
+    lives: 3,
+    sequence: [],
+    playerSequence: [],
+    phase: 'showing' // 'showing', 'input', 'checking'
+};
+
+let mazeState = {
+    playerPos: { x: 0, y: 0 },
+    fragments: [],
+    bugs: [],
+    collected: 0,
+    timeLeft: 120,
+    maze: [],
+    currentHint: ''
+};
+
+let bugHunterState = {
+    score: 0,
+    lives: 3,
+    phase: 0,
+    activeLines: [],
+    lineId: 0
+};
+
+let packetState = {
+    score: 0,
+    health: 6,
+    wave: 0,
+    currentPacket: null,
+    packetsLeft: 0,
+    timer: null
+};
+
+let bossState = {
+    phase: 0, // 0, 1, 2
+    mistakes: 0,
+    currentQuestion: 0,
+    timer: null,
+    timeLeft: 0,
+    inCell: false,
+    cellAttempts: 0,
+    cellPuzzle: null
+};
+
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a12);
+        scene.fog = new THREE.Fog(0x0a0a12, 5, 40);
+
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.7, 8);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+        const ambient = new THREE.AmbientLight(0x404060, 0.6);
+        scene.add(ambient);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        mainLight.position.set(5, 10, 5);
+        scene.add(mainLight);
+
+        createRoom(0);
+        setupEvents();
+        simulateLoading();
+        animate();
+    }
+
+    function simulateLoading() {
+        const bar = document.getElementById('loadingBar');
+        const text = document.getElementById('loadingText');
+        const msgs = ['Initializing...', 'Loading rooms...', 'Activating ARIA...', 'Ready!'];
+        let progress = 0;
+
+        const interval = setInterval(() => {
+            progress += Math.random() * 20 + 10;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(interval);
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    document.getElementById('startScreen').classList.add('visible');
+                    state.current = GameState.START;
+                }, 500);
+            }
+            bar.style.width = progress + '%';
+            text.textContent = msgs[Math.min(Math.floor(progress / 30), msgs.length - 1)];
+        }, 150);
+    }
+
+    function createRoom(roomIndex) {
+        roomObjects.forEach(obj => scene.remove(obj));
+        roomObjects = [];
+        interactables = [];
+
+        const room = rooms[roomIndex];
+        const size = 20, height = 5;
+
+        // Floor & Grid
+        const floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(size, size),
+            new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        roomObjects.push(floor);
+
+        const grid = new THREE.GridHelper(size, 20, 0x00f5ff, 0x1a1a2e);
+        grid.position.y = 0.01;
+        grid.material.opacity = 0.3;
+        grid.material.transparent = true;
+        scene.add(grid);
+        roomObjects.push(grid);
+
+        // Ceiling
+        const ceiling = new THREE.Mesh(
+            new THREE.PlaneGeometry(size, size),
+            new THREE.MeshStandardMaterial({ color: 0x0d0d15 })
+        );
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = height;
+        scene.add(ceiling);
+        roomObjects.push(ceiling);
+
+        // Walls
+        const wallMat = new THREE.MeshStandardMaterial({ color: room.color, roughness: 0.7 });
+       
+        // Back wall with door
+        createWallWithDoor(0, height/2, -size/2, size, height, wallMat, roomIndex);
+       
+        // Front, left, right walls
+        [[0, height/2, size/2, Math.PI], [-size/2, height/2, 0, Math.PI/2], [size/2, height/2, 0, -Math.PI/2]].forEach(([x, y, z, rot]) => {
+            const wall = new THREE.Mesh(new THREE.PlaneGeometry(size, height), wallMat);
+            wall.position.set(x, y, z);
+            wall.rotation.y = rot;
+            scene.add(wall);
+            roomObjects.push(wall);
+        });
+
+        // Room content
+        if (room.puzzleIndex !== null) {
+            createPuzzleTerminal(room.puzzleIndex);
+        }
+
+        // Decorations & lights
+        addDecorations(roomIndex);
+       
+        const light1 = new THREE.PointLight(0x00f5ff, 0.8, 15);
+        light1.position.set(5, 3, 0);
+        scene.add(light1);
+        roomObjects.push(light1);
+
+        // Update HUD
+        updateHUD(roomIndex);
+
+        // Reset player
+        camera.position.set(0, 1.7, 6);
+        euler.set(0, 0, 0);
+
+        // Show intro
+        state.roomEnterTime = Date.now();
+        if (room.intro) showAriaMessage(room.intro, 10000);
+    }
+
+    function createWallWithDoor(x, y, z, width, height, material, roomIndex) {
+        const doorW = 3, doorH = 3;
+       
+        // Wall parts
+        const leftWall = new THREE.Mesh(new THREE.PlaneGeometry((width - doorW) / 2, height), material);
+        leftWall.position.set(x - (width + doorW) / 4, y, z);
+        scene.add(leftWall);
+        roomObjects.push(leftWall);
+
+        const rightWall = leftWall.clone();
+        rightWall.position.x = x + (width + doorW) / 4;
+        scene.add(rightWall);
+        roomObjects.push(rightWall);
+
+        const topWall = new THREE.Mesh(new THREE.PlaneGeometry(doorW, height - doorH), material);
+        topWall.position.set(x, height - (height - doorH) / 2, z);
+        scene.add(topWall);
+        roomObjects.push(topWall);
+
+        // Door frame
+        const frame = new THREE.Mesh(
+            new THREE.BoxGeometry(doorW + 0.3, doorH + 0.1, 0.15),
+            new THREE.MeshBasicMaterial({ color: 0x00f5ff })
+        );
+        frame.position.set(x, doorH / 2, z);
+        scene.add(frame);
+        roomObjects.push(frame);
+
+        // Door trigger
+        const nextRoom = roomIndex + 1;
+        if (nextRoom < rooms.length) {
+            const trigger = new THREE.Mesh(
+                new THREE.BoxGeometry(doorW, doorH, 2),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            trigger.position.set(x, doorH / 2, z + 0.5);
+            trigger.userData = {
+                type: 'door',
+                targetRoom: nextRoom,
+                text: `Enter ${rooms[nextRoom].name}`
+            };
+            scene.add(trigger);
+            interactables.push(trigger);
+            roomObjects.push(trigger);
+        }
+    }
+
+    function createPuzzleTerminal(puzzleIndex) {
+        const solved = state.puzzlesSolved[puzzleIndex];
+       
+        // Terminal
+        const base = new THREE.Mesh(
+            new THREE.BoxGeometry(3, 1.2, 1),
+            new THREE.MeshStandardMaterial({ color: 0x2a2a4a, metalness: 0.7, roughness: 0.3 })
+        );
+        base.position.set(0, 0.6, -7);
+        scene.add(base);
+        roomObjects.push(base);
+
+        const screen = new THREE.Mesh(
+            new THREE.PlaneGeometry(2.5, 1.5),
+            new THREE.MeshBasicMaterial({ color: solved ? 0x00ff88 : 0x00f5ff })
+        );
+        screen.position.set(0, 1.8, -7.4);
+        scene.add(screen);
+        roomObjects.push(screen);
+
+        // Trigger
+        const trigger = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 3, 3),
+            new THREE.MeshBasicMaterial({ visible: false })
+        );
+        trigger.position.set(0, 1.5, -5.5);
+        trigger.userData = {
+            type: 'puzzle',
+            puzzleIndex: puzzleIndex,
+            text: solved ? '✓ Completed!' : getNewPuzzleTitle(puzzleIndex)
+        };
+        scene.add(trigger);
+        interactables.push(trigger);
+        roomObjects.push(trigger);
+    }
+
+    function addDecorations(roomIndex) {
+        // Particles
+        const positions = new Float32Array(150);
+        for (let i = 0; i < 150; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 18;
+            positions[i + 1] = Math.random() * 4 + 0.5;
+            positions[i + 2] = (Math.random() - 0.5) * 18;
+        }
+        const particleGeo = new THREE.BufferGeometry();
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const particles = new THREE.Points(particleGeo, new THREE.PointsMaterial({
+            color: 0x00f5ff, size: 0.08, transparent: true, opacity: 0.6
+        }));
+        scene.add(particles);
+        roomObjects.push(particles);
+
+        // Room-specific deco
+        if (roomIndex >= 1) {
+            for (let i = 0; i < 2; i++) {
+                const rack = new THREE.Mesh(
+                    new THREE.BoxGeometry(1, 3, 0.8),
+                    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8 })
+                );
+                rack.position.set(-7 + i * 2, 1.5, -5);
+                scene.add(rack);
+                roomObjects.push(rack);
+            }
+        }
+    }
+
+    function updateHUD(roomIndex) {
+        document.getElementById('roomProgress').textContent = `Room ${roomIndex + 1}/${rooms.length}`;
+        document.getElementById('roomName').textContent = rooms[roomIndex].name;
+
+        const bar = document.getElementById('progressBar');
+        bar.innerHTML = '';
+        for (let i = 0; i < rooms.length; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'progress-dot';
+            if (i === 0 || (i > 0 && state.puzzlesSolved[i - 1])) dot.classList.add('completed');
+            if (i === roomIndex) dot.classList.add('current');
+            bar.appendChild(dot);
+        }
+    }
+
+    function setupEvents() {
+        document.getElementById('startButton').addEventListener('click', startGame);
+        document.getElementById('playAgainBtn').addEventListener('click', restartGame);
+        document.getElementById('resumeBtn').addEventListener('click', resumeGame);
+        document.getElementById('restartBtn').addEventListener('click', restartGame);
+        document.getElementById('helpButton').addEventListener('click', requestHelp);
+
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+        document.addEventListener('mousemove', onMouseMove);
+       
+        renderer.domElement.addEventListener('click', () => {
+            if (state.current === GameState.PLAYING) renderer.domElement.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            isPointerLocked = document.pointerLockElement === renderer.domElement;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    function startGame() {
+        document.getElementById('startScreen').classList.remove('visible');
+        document.getElementById('hud').classList.add('visible');
+        document.getElementById('helpButton').style.display = 'flex';
+        state.current = GameState.PLAYING;
+        renderer.domElement.requestPointerLock();
+        startTimer();
+    }
+
+    function startTimer() {
+        state.timerInterval = setInterval(() => {
+            if (state.current === GameState.PLAYING) {
+                state.timeRemaining--;
+                updateTimerDisplay();
+                if (state.timeRemaining <= 0) gameOver();
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const mins = Math.floor(state.timeRemaining / 60);
+        const secs = state.timeRemaining % 60;
+        const timerEl = document.getElementById('timer');
+        document.getElementById('timerValue').textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+       
+        timerEl.classList.remove('warning', 'critical');
+        if (state.timeRemaining <= 60) timerEl.classList.add('critical');
+        else if (state.timeRemaining <= 300) timerEl.classList.add('warning');
+    }
+
+    function onKeyDown(e) {
+        if (state.current === GameState.PUZZLE && e.code !== 'Escape') return;
+       
+        switch (e.code) {
+            case 'KeyW': case 'ArrowUp': moveForward = true; break;
+            case 'KeyS': case 'ArrowDown': moveBackward = true; break;
+            case 'KeyA': case 'ArrowLeft': moveLeft = true; break;
+            case 'KeyD': case 'ArrowRight': moveRight = true; break;
+            case 'KeyE': handleInteraction(); break;
+            case 'KeyH': requestHelp(); break;
+            case 'Escape': togglePause(); break;
+        }
+    }
+
+    function onKeyUp(e) {
+        switch (e.code) {
+            case 'KeyW': case 'ArrowUp': moveForward = false; break;
+            case 'KeyS': case 'ArrowDown': moveBackward = false; break;
+            case 'KeyA': case 'ArrowLeft': moveLeft = false; break;
+            case 'KeyD': case 'ArrowRight': moveRight = false; break;
+        }
+    }
+
+    function onMouseMove(e) {
+        if (!isPointerLocked || state.current !== GameState.PLAYING) return;
+        euler.y -= e.movementX * 0.002;
+        euler.x -= e.movementY * 0.002;
+        euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, euler.x));
+        camera.quaternion.setFromEuler(euler);
+    }
+
+    function handleInteraction() {
+        if (!state.currentInteractable || state.current !== GameState.PLAYING) return;
+
+        const data = state.currentInteractable.userData;
+       
+        if (data.type === 'door') {
+            const currentRoom = rooms[state.currentRoom];
+            if (currentRoom.puzzleIndex !== null && !state.puzzlesSolved[currentRoom.puzzleIndex]) {
+                showAriaMessage("🔒 Complete the puzzle first! Look for the glowing terminal.", 5000);
+                return;
+            }
+            if (data.targetRoom < rooms.length) {
+                state.currentRoom = data.targetRoom;
+                createRoom(data.targetRoom);
+            }
+        } else if (data.type === 'puzzle') {
+            if (!state.puzzlesSolved[data.puzzleIndex]) {
+                openPuzzle(data.puzzleIndex);
+            } else {
+                showAriaMessage("✓ Already completed! Head to the door.", 4000);
+            }
+        }
+    }
+
+    function requestHelp() {
+        const room = rooms[state.currentRoom];
+        state.hintsUsed++;
+        showAriaMessage("💡 " + (room.hint || "Look for glowing objects and press E!"), 8000);
+    }
+
+    window.showAriaMessage = function(text, duration = 7000) {
+        const container = document.getElementById('ariaMessageContainer');
+        const msg = document.createElement('div');
+        msg.className = 'aria-message';
+        msg.innerHTML = `
+            <div class="aria-header">
+                <div class="aria-icon">🤖</div>
+                <div class="aria-name">ARIA</div>
+            </div>
+            <div class="aria-text">${text}</div>
+            <div class="aria-dismiss">Click to dismiss</div>
+        `;
+        container.appendChild(msg);
+       
+        msg.addEventListener('click', () => {
+            msg.classList.add('removing');
+            setTimeout(() => msg.remove(), 300);
+        });
+       
+        setTimeout(() => {
+            if (msg.parentElement) {
+                msg.classList.add('removing');
+                setTimeout(() => msg.remove(), 300);
+            }
+        }, duration);
+       
+        while (container.children.length > 2) container.firstChild.remove();
+    }
+
+    window.showNotification = function(text, type) {
+        const notif = document.getElementById('notification');
+        notif.className = 'notification visible ' + type;
+        document.getElementById('notificationIcon').textContent = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+        document.getElementById('notificationText').textContent = text;
+        setTimeout(() => notif.classList.remove('visible'), 4000);
+    }
+
+    // ============================================
+    // PUZZLE SYSTEM
+    // ============================================
+    function openPuzzle(puzzleIndex) {
+        state.current = GameState.PUZZLE;
+        document.exitPointerLock();
+       
+        const container = document.getElementById('puzzleContainer');
+        let html = '';
+       
+        // Nuevos niveles (5-9) tienen renderizado especial
+        if (puzzleIndex >= 5) {
+            const titles = {
+                5: '🧠 Memory Overflow',
+                6: '🌀 The Code Maze',
+                7: '🎯 Bug Hunter',
+                8: '🛡️ Packet Defense',
+                9: '👾 THE GLITCH'
+            };
+           
+            html = `
+                <div class="puzzle-header">
+                    <h2 class="puzzle-title">${titles[puzzleIndex]}</h2>
+                    <button class="puzzle-close" onclick="closePuzzle()">✕</button>
+                </div>
+                <div class="puzzle-body">
+            `;
+           
+            switch(puzzleIndex) {
+                case 5: html += renderMemoryGame(puzzleIndex); break;
+                case 6: html += renderMazeGame(puzzleIndex); break;
+                case 7: html += renderBugHunterGame(puzzleIndex); break;
+                case 8: html += renderPacketGame(puzzleIndex); break;
+                case 9: html += renderBossGame(puzzleIndex); break;
+            }
+           
+            html += `</div>`;
+            container.innerHTML = html;
+            document.getElementById('puzzleModal').classList.add('visible');
+           
+            // Inicializar minijuegos
+            setTimeout(() => {
+                switch(puzzleIndex) {
+                    case 5: initMemoryGame(); break;
+                    case 6: initMazeGame(); break;
+                    case 7: initBugHunterGame(); break;
+                    case 8: initPacketGame(); break;
+                    case 9: initBossGame(); break;
+                }
+            }, 100);
+            return;
+        }
+       
+        // Puzzles originales (0-4)
+        const puzzle = puzzles[puzzleIndex];
+       
+        html = `
+            <div class="puzzle-header">
+                <h2 class="puzzle-title">${puzzle.title}</h2>
+                <button class="puzzle-close" onclick="closePuzzle()">✕</button>
+            </div>
+            <div class="puzzle-body">
+        `;
+
+        // Different puzzle types
+        if (puzzle.type === 'selection') {
+            html += renderSelectionPuzzle(puzzle, puzzleIndex);
+        } else if (puzzle.type === 'sql_drag') {
+            html += renderSQLPuzzle(puzzle, puzzleIndex);
+        } else if (puzzle.type === 'firewall_click') {
+            html += renderFirewallPuzzle(puzzle, puzzleIndex);
+        } else if (puzzle.type === 'terminal') {
+            html += renderTerminalPuzzle(puzzle, puzzleIndex);
+        } else if (puzzle.type === 'api_debug') {
+            html += renderAPIPuzzle(puzzle, puzzleIndex);
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+        document.getElementById('puzzleModal').classList.add('visible');
+
+        // Initialize minigames
+        if (puzzle.type === 'sql_drag') initSQLGame(puzzle);
+        if (puzzle.type === 'firewall_click') initFirewallGame(puzzle);
+        if (puzzle.type === 'terminal') initTerminalGame(puzzle);
+        if (puzzle.type === 'api_debug') initAPIGame(puzzle);
+    }
+
+    // Selection Puzzle (Code Analysis)
+    function renderSelectionPuzzle(puzzle, idx) {
+        return `
+            ${puzzle.content}
+            <div class="puzzle-options" id="puzzleOptions">
+                ${puzzle.options.map(opt => `
+                    <div class="puzzle-option" data-id="${opt.id}" data-correct="${opt.correct}" onclick="selectOption(this)">
+                        <span class="option-letter">${opt.id}</span>
+                        <span>${opt.text}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="puzzle-actions">
+                <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+                <button class="puzzle-btn primary" onclick="submitSelection(${idx})">✓ Confirm</button>
+            </div>
+        `;
+    }
+
+    window.selectOption = function(el) {
+        el.parentElement.querySelectorAll('.puzzle-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+    };
+
+    window.submitSelection = function(idx) {
+        const selected = document.querySelector('#puzzleOptions .puzzle-option.selected');
+        if (!selected) { showNotification('Select an answer!', 'error'); return; }
+       
+        const puzzle = puzzles[idx];
+        if (selected.dataset.correct === 'true') {
+            selected.classList.add('correct');
+            completePuzzle(idx, puzzle.success);
+        } else {
+            selected.classList.add('incorrect');
+            showNotification(puzzle.fail, 'error');
+        }
+    };
+
+    // SQL Drag & Drop Puzzle
+    function renderSQLPuzzle(puzzle, idx) {
+        const allPieces = [...puzzle.pieces, ...puzzle.distractors].sort(() => Math.random() - 0.5);
+        return `
+            <div class="puzzle-prompt">
+                📋 <strong>Build this query:</strong> Show names and salaries of Engineering employees earning over 50000, highest salary first.
+            </div>
+            <div class="sql-game-container">
+                <div class="sql-pieces" id="sqlPieces">
+                    ${allPieces.map((p, i) => `
+                        <div class="sql-piece ${p.type}" draggable="true" data-text="${p.text}" data-idx="${i}">${p.text}</div>
+                    `).join('')}
+                </div>
+                <p style="text-align:center; color: var(--neon-cyan);">👆 Drag pieces here to build your query 👇</p>
+                <div class="sql-build-area" id="sqlBuildArea"></div>
+                <div class="sql-result" id="sqlResult">Your query will appear here...</div>
+            </div>
+            <div class="puzzle-actions">
+                <button class="puzzle-btn secondary" onclick="clearSQL()">🗑️ Clear</button>
+                <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+                <button class="puzzle-btn primary" onclick="submitSQL(${idx})">▶ Execute</button>
+            </div>
+        `;
+    }
+
+    function initSQLGame(puzzle) {
+        sqlBuiltQuery = [];
+        const pieces = document.querySelectorAll('.sql-piece');
+        const buildArea = document.getElementById('sqlBuildArea');
+
+        pieces.forEach(piece => {
+            piece.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text', piece.dataset.text);
+                piece.classList.add('dragging');
+            });
+            piece.addEventListener('dragend', () => piece.classList.remove('dragging'));
+        });
+
+        buildArea.addEventListener('dragover', e => {
+            e.preventDefault();
+            buildArea.classList.add('drag-over');
+        });
+        buildArea.addEventListener('dragleave', () => buildArea.classList.remove('drag-over'));
+        buildArea.addEventListener('drop', e => {
+            e.preventDefault();
+            buildArea.classList.remove('drag-over');
+            const text = e.dataTransfer.getData('text');
+            addSQLPiece(text);
+        });
+    }
+
+    function addSQLPiece(text) {
+        if (sqlBuiltQuery.includes(text)) return;
+        sqlBuiltQuery.push(text);
+        updateSQLDisplay();
+       
+        // Mark original as placed
+        document.querySelectorAll('.sql-piece').forEach(p => {
+            if (p.dataset.text === text && !p.closest('#sqlBuildArea')) {
+                p.classList.add('placed');
+            }
+        });
+    }
+
+    function updateSQLDisplay() {
+        const buildArea = document.getElementById('sqlBuildArea');
+        const result = document.getElementById('sqlResult');
+       
+        buildArea.innerHTML = sqlBuiltQuery.map(text => `
+            <div class="sql-piece" onclick="removeSQLPiece('${text}')" style="cursor:pointer;" title="Click to remove">${text}</div>
+        `).join('');
+       
+        result.textContent = sqlBuiltQuery.join(' ') || 'Your query will appear here...';
+    }
+
+    window.removeSQLPiece = function(text) {
+        sqlBuiltQuery = sqlBuiltQuery.filter(t => t !== text);
+        updateSQLDisplay();
+        document.querySelectorAll('.sql-piece').forEach(p => {
+            if (p.dataset.text === text) p.classList.remove('placed');
+        });
+    };
+
+    window.clearSQL = function() {
+        sqlBuiltQuery = [];
+        updateSQLDisplay();
+        document.querySelectorAll('.sql-piece').forEach(p => p.classList.remove('placed'));
+    };
+
+    window.submitSQL = function(idx) {
+        const puzzle = puzzles[idx];
+        const built = sqlBuiltQuery.join(' ');
+        if (built === puzzle.target) {
+            completePuzzle(idx, puzzle.success);
+        } else {
+            showNotification(puzzle.fail, 'error');
+        }
+    };
+
+    // Firewall Click Puzzle
+    function renderFirewallPuzzle(puzzle, idx) {
+        return `
+            <div class="puzzle-prompt">
+                🛡️ <strong>Configure each port:</strong> Click to cycle through ALLOW → INTERNAL → ADMIN → DENY<br>
+                • 80/443 (Web) = ALLOW from anywhere<br>
+                • 3306 (Database) = INTERNAL only<br>
+                • 22 (SSH) = ADMIN only<br>
+                • * (Other) = DENY all
+            </div>
+            <div class="firewall-game">
+                <div class="firewall-grid">
+                    ${puzzle.ports.map((p, i) => `
+                        <div class="port-slot" id="port-${i}" onclick="cyclePort(${i})" data-state="none" data-correct="${p.correct}">
+                            <div class="port-number">${p.port}</div>
+                            <div class="port-service">${p.service}</div>
+                            <div class="port-status">CLICK</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="firewall-legend">
+                    <div class="legend-item"><div class="legend-color" style="background: var(--neon-green);"></div> ALLOW (Anyone)</div>
+                    <div class="legend-item"><div class="legend-color" style="background: var(--neon-orange);"></div> INTERNAL</div>
+                    <div class="legend-item"><div class="legend-color" style="background: var(--neon-magenta);"></div> ADMIN</div>
+                    <div class="legend-item"><div class="legend-color" style="background: var(--neon-red);"></div> DENY</div>
+                </div>
+            </div>
+            <div class="puzzle-actions">
+                <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+                <button class="puzzle-btn primary" onclick="submitFirewall(${idx})">🔒 Apply</button>
+            </div>
+        `;
+    }
+
+    function initFirewallGame(puzzle) {
+        firewallStates = {};
+        puzzle.ports.forEach((p, i) => firewallStates[i] = 'none');
+    }
+
+    const portStates = ['none', 'allow', 'internal', 'admin', 'deny'];
+    const portLabels = { none: 'CLICK', allow: 'ALLOW', internal: 'INTERNAL', admin: 'ADMIN', deny: 'DENY' };
+
+    window.cyclePort = function(idx) {
+        const currentIdx = portStates.indexOf(firewallStates[idx]);
+        const nextIdx = (currentIdx + 1) % portStates.length;
+        firewallStates[idx] = portStates[nextIdx];
+       
+        const slot = document.getElementById(`port-${idx}`);
+        slot.className = 'port-slot ' + firewallStates[idx];
+        slot.querySelector('.port-status').textContent = portLabels[firewallStates[idx]];
+    };
+
+    window.submitFirewall = function(idx) {
+        const puzzle = puzzles[idx];
+        let correct = true;
+        puzzle.ports.forEach((p, i) => {
+            if (firewallStates[i] !== p.correct) correct = false;
+        });
+       
+        if (correct) {
+            completePuzzle(idx, puzzle.success);
+        } else {
+            showNotification(puzzle.fail, 'error');
+        }
+    };
+
+    // Terminal Puzzle
+    function renderTerminalPuzzle(puzzle, idx) {
+        return `
+            <div class="terminal-objectives">
+                <strong>📋 Objectives:</strong>
+                ${puzzle.objectives.map((o, i) => `
+                    <div class="objective-item pending" id="obj-${i}">
+                        <span>☐</span> ${o.description} <code style="color: var(--neon-green);">${o.cmd}</code>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="terminal-game">
+                <div class="terminal-header">
+                    <span>●</span><span>●</span><span>●</span>
+                    <span style="margin-left: 1rem;">NEXUS Terminal v2.0</span>
+                </div>
+                <div class="terminal-body" id="terminalBody">
+                    <div class="terminal-line system">NEXUS Security Terminal initialized.</div>
+                    <div class="terminal-line system">Type commands or click buttons below.</div>
+                </div>
+                <div class="terminal-input-line" style="padding: 0 1rem 1rem;">
+                    <span class="terminal-prompt">$</span>
+                    <input type="text" class="terminal-input" id="terminalInput" placeholder="Type command..." onkeypress="if(event.key==='Enter')executeCommand()">
+                </div>
+            </div>
+            <div class="terminal-commands">
+                ${puzzle.objectives.map(o => `
+                    <button class="terminal-cmd-btn" onclick="typeCommand('${o.cmd}')">${o.cmd}</button>
+                `).join('')}
+            </div>
+            <div class="puzzle-actions">
+                <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+                <button class="puzzle-btn primary" onclick="submitTerminal(${idx})">✓ Complete</button>
+            </div>
+        `;
+    }
+
+    function initTerminalGame(puzzle) {
+        terminalObjectives = puzzle.objectives.map(() => false);
+    }
+
+    window.typeCommand = function(cmd) {
+        document.getElementById('terminalInput').value = cmd;
+        executeCommand();
+    };
+
+    window.executeCommand = function() {
+        const input = document.getElementById('terminalInput');
+        const cmd = input.value.trim().toLowerCase();
+        const body = document.getElementById('terminalBody');
+       
+        if (!cmd) return;
+       
+        body.innerHTML += `<div class="terminal-line user">$ ${cmd}</div>`;
+       
+        const puzzle = puzzles[3]; // Terminal puzzle
+        let found = false;
+       
+        puzzle.objectives.forEach((o, i) => {
+            if (cmd === o.cmd.toLowerCase() && !terminalObjectives[i]) {
+                terminalObjectives[i] = true;
+                body.innerHTML += `<div class="terminal-line success">${o.response}</div>`;
+                document.getElementById(`obj-${i}`).className = 'objective-item completed';
+                document.getElementById(`obj-${i}`).innerHTML = `<span>✓</span> ${o.description}`;
+                found = true;
+            }
+        });
+       
+        if (!found) {
+            body.innerHTML += `<div class="terminal-line error">Command not recognized. Try: ${puzzle.objectives.map(o => o.cmd).join(', ')}</div>`;
+        }
+       
+        input.value = '';
+        body.scrollTop = body.scrollHeight;
+    };
+
+    window.submitTerminal = function(idx) {
+        if (terminalObjectives.every(t => t)) {
+            completePuzzle(idx, puzzles[idx].success);
+        } else {
+            showNotification('Complete all objectives first!', 'error');
+        }
+    };
+
+    // API Debug Puzzle
+    function renderAPIPuzzle(puzzle, idx) {
+        apiCurrentScenario = 0;
+        apiCorrectAnswers = 0;
+        return `
+            <div class="api-debug-game" id="apiGame">
+                ${renderAPIScenario(puzzle.scenarios[0], 0, idx)}
+            </div>
+        `;
+    }
+
+    function renderAPIScenario(scenario, num, puzzleIdx) {
+        return `
+            <div class="puzzle-prompt">
+                🔧 <strong>Debug ${num + 1}/3:</strong> Find the bug in this API request!
+            </div>
+            <div class="api-request">
+                <div class="api-request-header">
+                    <span class="api-method ${scenario.method.toLowerCase()}">${scenario.method}</span>
+                    <span class="api-url">${scenario.url}</span>
+                </div>
+                ${scenario.body ? `<div class="api-body"><pre>${scenario.body}</pre></div>` : ''}
+            </div>
+            <div class="api-response">
+                <span class="api-status error">${scenario.status}</span>
+                <div style="margin-top: 0.5rem; color: var(--neon-red);">${scenario.error}</div>
+            </div>
+            <p style="margin: 1rem 0; color: var(--neon-cyan);">What's causing this error?</p>
+            <div class="bug-options" id="bugOptions">
+                ${scenario.bugs.map(b => `
+                    <div class="bug-option" data-id="${b.id}" data-correct="${b.correct}" onclick="selectBug(this)">
+                        <div class="bug-title">${b.title}</div>
+                        <div class="bug-description">${b.desc}</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="puzzle-actions">
+                <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+                <button class="puzzle-btn primary" onclick="submitAPI(${puzzleIdx})">✓ Submit</button>
+            </div>
+        `;
+    }
+
+    function initAPIGame(puzzle) {
+        apiCurrentScenario = 0;
+        apiCorrectAnswers = 0;
+    }
+
+    window.selectBug = function(el) {
+        document.querySelectorAll('#bugOptions .bug-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+    };
+
+    window.submitAPI = function(idx) {
+        const puzzle = puzzles[idx];
+        const selected = document.querySelector('#bugOptions .bug-option.selected');
+       
+        if (!selected) { showNotification('Select a bug!', 'error'); return; }
+       
+        if (selected.dataset.correct === 'true') {
+            selected.classList.add('correct');
+            apiCorrectAnswers++;
+           
+            if (apiCurrentScenario < puzzle.scenarios.length - 1) {
+                setTimeout(() => {
+                    apiCurrentScenario++;
+                    document.getElementById('apiGame').innerHTML = renderAPIScenario(
+                        puzzle.scenarios[apiCurrentScenario],
+                        apiCurrentScenario,
+                        idx
+                    );
+                }, 1000);
+            } else {
+                completePuzzle(idx, puzzle.success);
+            }
+        } else {
+            selected.classList.add('incorrect');
+            showNotification(puzzle.fail, 'error');
+        }
+    };
+
+    // Common functions
+    window.puzzleHint = function() {
+        const room = rooms[state.currentRoom];
+        state.hintsUsed++;
+        showAriaMessage("💡 " + room.hint, 8000);
+    };
+
+    window.closePuzzle = function() {
+        // Limpiar timers de minijuegos
+        if (typeof mazeState !== 'undefined' && mazeState.timer) clearInterval(mazeState.timer);
+        if (typeof packetState !== 'undefined' && packetState.timer) clearInterval(packetState.timer);
+        if (typeof bossState !== 'undefined' && bossState.timer) clearInterval(bossState.timer);
+       
+        // Remover event listeners
+        document.removeEventListener('keydown', handleMazeKey);
+       
+        // Cerrar celda del boss
+        const cellOverlay = document.getElementById('cellOverlay');
+        if (cellOverlay) cellOverlay.classList.remove('visible');
+       
+        document.getElementById('puzzleModal').classList.remove('visible');
+        state.current = GameState.PLAYING;
+        renderer.domElement.requestPointerLock();
+    };
+
+    window.completePuzzle = function(idx, message) {
+        console.log("completePuzzle llamado con idx:", idx, "puzzlesSolved antes:", JSON.stringify(state.puzzlesSolved));
+        state.puzzlesSolved[idx] = true;
+        console.log("puzzlesSolved después:", JSON.stringify(state.puzzlesSolved));
+        showNotification(message, 'success');
+       
+        setTimeout(() => {
+            closePuzzle();
+           
+            if (state.puzzlesSolved.every(s => s)) {
+                setTimeout(victory, 1500);
+            } else {
+                showAriaMessage("🎉 Excellent! Head through the door to the next challenge!", 5000);
+            }
+        }, 1500);
+    }
+
+    function togglePause() {
+        if (state.current === GameState.PLAYING) {
+            state.current = GameState.PAUSED;
+            document.getElementById('pauseMenu').classList.add('visible');
+            document.exitPointerLock();
+        } else if (state.current === GameState.PAUSED) {
+            resumeGame();
+        } else if (state.current === GameState.PUZZLE) {
+            closePuzzle();
+        }
+    }
+
+    function resumeGame() {
+        state.current = GameState.PLAYING;
+        document.getElementById('pauseMenu').classList.remove('visible');
+        renderer.domElement.requestPointerLock();
+    }
+
+    function restartGame() {
+        state.current = GameState.START;
+        state.currentRoom = 0;
+        state.puzzlesSolved = [false, false, false, false, false];
+        state.hintsUsed = 0;
+        state.timeRemaining = 30 * 60;
+       
+        if (state.timerInterval) clearInterval(state.timerInterval);
+       
+        ['pauseMenu', 'victoryScreen', 'puzzleModal'].forEach(id =>
+            document.getElementById(id).classList.remove('visible'));
+        document.getElementById('hud').classList.remove('visible');
+        document.getElementById('helpButton').style.display = 'none';
+        document.getElementById('startScreen').classList.add('visible');
+        document.getElementById('ariaMessageContainer').innerHTML = '';
+       
+        createRoom(0);
+        updateTimerDisplay();
+    }
+
+    function victory() {
+        state.current = GameState.VICTORY;
+        if (state.timerInterval) clearInterval(state.timerInterval);
+       
+        document.exitPointerLock();
+        document.getElementById('hud').classList.remove('visible');
+        document.getElementById('helpButton').style.display = 'none';
+        document.getElementById('puzzleModal').classList.remove('visible');
+       
+        document.getElementById('victoryTitle').textContent = '🎉 ESCAPE COMPLETE!';
+        document.getElementById('victorySubtitle').textContent = 'Developer Certification Approved';
+        document.getElementById('victoryScreen').classList.add('visible');
+       
+        const mins = Math.floor(state.timeRemaining / 60);
+        const secs = state.timeRemaining % 60;
+        document.getElementById('finalTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        document.getElementById('finalPuzzles').textContent = '10/10';
+        document.getElementById('finalHints').textContent = state.hintsUsed;
+    }
+
+    function gameOver() {
+        state.current = GameState.VICTORY;
+        if (state.timerInterval) clearInterval(state.timerInterval);
+       
+        document.exitPointerLock();
+        document.getElementById('hud').classList.remove('visible');
+        document.getElementById('helpButton').style.display = 'none';
+       
+        document.getElementById('victoryTitle').textContent = "⏰ TIME'S UP!";
+        document.getElementById('victorySubtitle').textContent = 'Better luck next time!';
+        document.getElementById('victoryScreen').classList.add('visible');
+       
+        document.getElementById('finalTime').textContent = '0:00';
+        document.getElementById('finalPuzzles').textContent = `${state.puzzlesSolved.filter(s => s).length}/10`;
+        document.getElementById('finalHints').textContent = state.hintsUsed;
+    }
+
+    /* ============================================
+   DAM ESCAPE v4.0 - FUNCIONES DE MINIJUEGOS
+   Parte 2: Renderizado y lógica
+   ============================================ */
+
+// ============================================
+// NIVEL 6: MEMORY OVERFLOW
+// ============================================
+
+window.renderMemoryGame = function(puzzleIndex) {
+    memoryState = {
+        currentRound: 0,
+        lives: 3,
+        sequence: [],
+        playerSequence: [],
+        phase: 'showing'
+    };
+   
+    return `
+        <div class="puzzle-prompt">
+            🧠 <strong>MEMORY OVERFLOW</strong><br>
+            Watch the sequence, then repeat it in order. Complete 5 rounds to win!
+        </div>
+        <div class="memory-game" id="memoryGame">
+            <div class="memory-round-info">
+                <span>Round <span id="memRound">1</span>/5</span>
+                <div class="memory-lives" id="memLives">❤️❤️❤️</div>
+            </div>
+            <div class="memory-display" id="memDisplay">
+                <div class="memory-status">GET READY...</div>
+            </div>
+            <div class="memory-sequence-display" id="memSeqDisplay"></div>
+            <div class="memory-options" id="memOptions" style="display: none;"></div>
+        </div>
+        <div class="puzzle-actions">
+            <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+        </div>
+    `;
+}
+
+window.initMemoryGame = function() {
+    setTimeout(() => startMemoryRound(), 1500);
+}
+
+window.startMemoryRound = function() {
+    const round = memoryRounds[memoryState.currentRound];
+    const allCommands = Object.values(memoryCommands).flat();
+   
+    // Generar secuencia
+    memoryState.sequence = [];
+    const usedIndexes = new Set();
+    while (memoryState.sequence.length < round.count) {
+        const idx = Math.floor(Math.random() * allCommands.length);
+        if (!usedIndexes.has(idx)) {
+            usedIndexes.add(idx);
+            memoryState.sequence.push(allCommands[idx]);
+        }
+    }
+   
+    memoryState.playerSequence = [];
+    memoryState.phase = 'showing';
+   
+    // Mostrar secuencia
+    const display = document.getElementById('memDisplay');
+    display.innerHTML = '<div class="memory-status">📖 MEMORIZE!</div>';
+   
+    setTimeout(() => {
+        display.innerHTML = memoryState.sequence.map(cmd =>
+            `<div class="memory-card">${cmd}</div>`
+        ).join('');
+       
+        // Ocultar después del tiempo
+        setTimeout(() => showMemoryInput(), round.showTime);
+    }, 500);
+   
+    document.getElementById('memRound').textContent = memoryState.currentRound + 1;
+    updateMemorySequenceDisplay();
+}
+
+window.showMemoryInput = function() {
+    memoryState.phase = 'input';
+    const display = document.getElementById('memDisplay');
+    display.innerHTML = '<div class="memory-status">🎯 YOUR TURN!</div>';
+   
+    // Generar opciones (secuencia + distractores)
+    const allCommands = Object.values(memoryCommands).flat();
+    let options = [...memoryState.sequence];
+   
+    // Añadir distractores
+    while (options.length < Math.min(12, memoryState.sequence.length + 5)) {
+        const distractor = allCommands[Math.floor(Math.random() * allCommands.length)];
+        if (!options.includes(distractor)) {
+            options.push(distractor);
+        }
+    }
+   
+    // Mezclar
+    options = options.sort(() => Math.random() - 0.5);
+   
+    const optionsDiv = document.getElementById('memOptions');
+    optionsDiv.style.display = 'flex';
+    optionsDiv.innerHTML = options.map(opt =>
+        `<button class="memory-btn" onclick="memorySelect(this, '${opt}')">${opt}</button>`
+    ).join('');
+   
+    updateMemorySequenceDisplay();
+}
+
+window.memorySelect = function(btn, command) {
+    if (memoryState.phase !== 'input') return;
+   
+    const expectedIndex = memoryState.playerSequence.length;
+    const expected = memoryState.sequence[expectedIndex];
+   
+    if (command === expected) {
+        btn.classList.add('correct');
+        btn.disabled = true;
+        memoryState.playerSequence.push(command);
+        updateMemorySequenceDisplay();
+       
+        // ¿Completó la secuencia?
+        if (memoryState.playerSequence.length === memoryState.sequence.length) {
+            memoryState.phase = 'checking';
+            setTimeout(() => memoryRoundComplete(), 500);
+        }
+    } else {
+        btn.classList.add('wrong');
+        memoryState.lives--;
+        updateMemoryLives();
+       
+        if (memoryState.lives <= 0) {
+            memoryGameOver();
+        } else {
+            showNotification(`Wrong! The next was "${expected}"`, 'error');
+            setTimeout(() => startMemoryRound(), 1500);
+        }
+    }
+};
+
+window.updateMemorySequenceDisplay = function() {
+    const display = document.getElementById('memSeqDisplay');
+    display.innerHTML = memoryState.sequence.map((_, i) => {
+        let className = 'sequence-dot';
+        if (i < memoryState.playerSequence.length) className += ' filled';
+        else if (i === memoryState.playerSequence.length && memoryState.phase === 'input') className += ' current';
+        return `<div class="${className}"></div>`;
+    }).join('');
+}
+
+window.updateMemoryLives = function() {
+    document.getElementById('memLives').textContent = '❤️'.repeat(memoryState.lives) + '🖤'.repeat(3 - memoryState.lives);
+}
+
+window.memoryRoundComplete = function() {
+    memoryState.currentRound++;
+   
+    if (memoryState.currentRound >= 5) {
+        // Victoria!
+        completePuzzle(5, "🎉 MEMORY MASTER! You completed all 5 rounds!");
+    } else {
+        showNotification(`Round ${memoryState.currentRound} complete!`, 'success');
+        document.getElementById('memOptions').style.display = 'none';
+        setTimeout(() => startMemoryRound(), 1000);
+    }
+}
+
+window.memoryGameOver = function() {
+    document.getElementById('memDisplay').innerHTML = `
+        <div class="memory-status" style="color: var(--neon-red);">💀 MEMORY OVERFLOW!</div>
+    `;
+    document.getElementById('memOptions').innerHTML = `
+        <button class="puzzle-btn primary" onclick="retryMemory()">↺ Try Again</button>
+    `;
+}
+
+window.retryMemory = function() {
+    memoryState.currentRound = 0;
+    memoryState.lives = 3;
+    updateMemoryLives();
+    startMemoryRound();
+};
+
+// ============================================
+// NIVEL 7: THE CODE MAZE
+// ============================================
+
+window.renderMazeGame = function(puzzleIndex) {
+    return `
+        <div class="puzzle-prompt">
+            🌀 <strong>THE CODE MAZE</strong><br>
+            Find all 4 code fragments! Use arrow keys or WASD. Avoid the bugs!
+        </div>
+        <div class="maze-game" id="mazeGame">
+            <div class="maze-hud">
+                <div class="maze-timer">⏱️ <span id="mazeTime">2:00</span></div>
+                <div class="maze-fragments">📦 <span id="mazeFragments">0</span>/4</div>
+            </div>
+            <canvas class="maze-canvas" id="mazeCanvas"></canvas>
+            <div class="maze-hint" id="mazeHint">Find the first fragment...</div>
+            <div class="maze-warning" id="mazeWarning">⚠️ BUG COLLISION! -10 sec</div>
+        </div>
+        <div class="puzzle-actions">
+            <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+        </div>
+    `;
+}
+
+window.initMazeGame = function() {
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+   
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight - 60;
+   
+    // Generar laberinto simple
+    generateMaze();
+   
+    // Colocar fragmentos
+    placeFragments();
+   
+    // Colocar bugs
+    placeBugs();
+   
+    // Posición inicial del jugador
+    mazeState.playerPos = { x: 1, y: 1 };
+    mazeState.timeLeft = mazeConfig.timeLimit;
+    mazeState.collected = 0;
+   
+    // Controles
+    document.addEventListener('keydown', handleMazeKey);
+   
+    // Timer
+    mazeState.timer = setInterval(() => {
+        mazeState.timeLeft--;
+        updateMazeTimer();
+        moveBugs();
+        renderMaze();
+       
+        if (mazeState.timeLeft <= 0) {
+            clearInterval(mazeState.timer);
+            mazeGameOver();
+        }
+    }, 1000);
+   
+    renderMaze();
+}
+
+window.generateMaze = function() {
+    const w = mazeConfig.width;
+    const h = mazeConfig.height;
+   
+    // Inicializar con paredes
+    mazeState.maze = Array(h).fill(null).map(() => Array(w).fill(1));
+   
+    // Algoritmo simple: crear caminos
+    function carve(x, y) {
+        mazeState.maze[y][x] = 0;
+       
+        const directions = [
+            [0, -2], [0, 2], [-2, 0], [2, 0]
+        ].sort(() => Math.random() - 0.5);
+       
+        for (const [dx, dy] of directions) {
+            const nx = x + dx;
+            const ny = y + dy;
+           
+            if (nx > 0 && nx < w - 1 && ny > 0 && ny < h - 1 && mazeState.maze[ny][nx] === 1) {
+                mazeState.maze[y + dy/2][x + dx/2] = 0;
+                carve(nx, ny);
+            }
+        }
+    }
+   
+    carve(1, 1);
+   
+    // Asegurar que hay suficientes caminos
+    for (let y = 1; y < h - 1; y += 2) {
+        for (let x = 1; x < w - 1; x += 2) {
+            if (mazeState.maze[y][x] === 1) {
+                mazeState.maze[y][x] = 0;
+            }
+        }
+    }
+}
+
+window.placeFragments = function() {
+    mazeState.fragments = [];
+    const positions = [
+        { x: mazeConfig.width - 2, y: 1 },           // NE
+        { x: 1, y: mazeConfig.height - 2 },          // SW
+        { x: Math.floor(mazeConfig.width/2), y: Math.floor(mazeConfig.height/2) }, // Center
+        { x: mazeConfig.width - 2, y: mazeConfig.height - 2 }  // SE (exit)
+    ];
+   
+    positions.forEach((pos, i) => {
+        mazeState.maze[pos.y][pos.x] = 0; // Asegurar que es accesible
+        mazeState.fragments.push({ ...pos, collected: false, hint: mazeConfig.fragmentHints[i] });
+    });
+}
+
+window.placeBugs = function() {
+    mazeState.bugs = [];
+    for (let i = 0; i < mazeConfig.bugCount; i++) {
+        let x, y;
+        do {
+            x = Math.floor(Math.random() * (mazeConfig.width - 2)) + 1;
+            y = Math.floor(Math.random() * (mazeConfig.height - 2)) + 1;
+        } while (mazeState.maze[y][x] === 1 || (x < 3 && y < 3));
+       
+        mazeState.bugs.push({ x, y, dir: Math.floor(Math.random() * 4) });
+    }
+}
+
+window.handleMazeKey = function(e) {
+    if (state.current !== GameState.PUZZLE) return;
+   
+    let dx = 0, dy = 0;
+    switch(e.key) {
+        case 'ArrowUp': case 'w': case 'W': dy = -1; break;
+        case 'ArrowDown': case 's': case 'S': dy = 1; break;
+        case 'ArrowLeft': case 'a': case 'A': dx = -1; break;
+        case 'ArrowRight': case 'd': case 'D': dx = 1; break;
+        default: return;
+    }
+   
+    e.preventDefault();
+   
+    const newX = mazeState.playerPos.x + dx;
+    const newY = mazeState.playerPos.y + dy;
+   
+    if (newX >= 0 && newX < mazeConfig.width &&
+        newY >= 0 && newY < mazeConfig.height &&
+        mazeState.maze[newY][newX] === 0) {
+       
+        mazeState.playerPos.x = newX;
+        mazeState.playerPos.y = newY;
+       
+        checkFragmentCollision();
+        checkBugCollision();
+        renderMaze();
+    }
+}
+
+window.checkFragmentCollision = function() {
+    mazeState.fragments.forEach((frag, i) => {
+        if (!frag.collected && frag.x === mazeState.playerPos.x && frag.y === mazeState.playerPos.y) {
+            frag.collected = true;
+            mazeState.collected++;
+            document.getElementById('mazeFragments').textContent = mazeState.collected;
+            document.getElementById('mazeHint').textContent = frag.hint;
+           
+            if (mazeState.collected >= 4) {
+                clearInterval(mazeState.timer);
+                document.removeEventListener('keydown', handleMazeKey);
+                completePuzzle(6, "🎉 MAZE CONQUERED! All fragments collected!");
+            } else {
+                showNotification(`Fragment ${mazeState.collected}/4 collected!`, 'success');
+            }
+        }
+    });
+}
+
+window.checkBugCollision = function() {
+    mazeState.bugs.forEach(bug => {
+        if (bug.x === mazeState.playerPos.x && bug.y === mazeState.playerPos.y) {
+            mazeState.timeLeft = Math.max(0, mazeState.timeLeft - 10);
+            mazeState.playerPos = { x: 1, y: 1 };
+           
+            const warning = document.getElementById('mazeWarning');
+            warning.classList.add('visible');
+            setTimeout(() => warning.classList.remove('visible'), 1500);
+        }
+    });
+}
+
+window.moveBugs = function() {
+    const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+   
+    mazeState.bugs.forEach(bug => {
+        // Cambiar dirección aleatoriamente
+        if (Math.random() < 0.3) {
+            bug.dir = Math.floor(Math.random() * 4);
+        }
+       
+        const [dx, dy] = dirs[bug.dir];
+        const newX = bug.x + dx;
+        const newY = bug.y + dy;
+       
+        if (newX > 0 && newX < mazeConfig.width - 1 &&
+            newY > 0 && newY < mazeConfig.height - 1 &&
+            mazeState.maze[newY][newX] === 0) {
+            bug.x = newX;
+            bug.y = newY;
+        } else {
+            bug.dir = (bug.dir + 1) % 4;
+        }
+    });
+   
+    checkBugCollision();
+}
+
+window.updateMazeTimer = function() {
+    const mins = Math.floor(mazeState.timeLeft / 60);
+    const secs = mazeState.timeLeft % 60;
+    document.getElementById('mazeTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+window.renderMaze = function() {
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+    const cellW = canvas.width / mazeConfig.width;
+    const cellH = canvas.height / mazeConfig.height;
+   
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+   
+    // Dibujar laberinto
+    for (let y = 0; y < mazeConfig.height; y++) {
+        for (let x = 0; x < mazeConfig.width; x++) {
+            if (mazeState.maze[y][x] === 1) {
+                ctx.fillStyle = '#1a3a1a';
+                ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+               
+                // Texto de código en las paredes
+                ctx.fillStyle = '#0f0';
+                ctx.font = '8px monospace';
+                ctx.fillText(Math.random() > 0.5 ? '01' : '10', x * cellW + 2, y * cellH + cellH/2);
+            }
+        }
+    }
+   
+    // Dibujar fragmentos
+    mazeState.fragments.forEach((frag, i) => {
+        if (!frag.collected) {
+            const colors = ['#00ff88', '#00f5ff', '#ffff00', '#ff00ff'];
+            ctx.fillStyle = colors[i];
+            ctx.shadowColor = colors[i];
+            ctx.shadowBlur = 15;
+            ctx.beginPath();
+            ctx.arc(frag.x * cellW + cellW/2, frag.y * cellH + cellH/2, cellW/3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+    });
+   
+    // Dibujar bugs
+    ctx.fillStyle = '#ff3355';
+    ctx.shadowColor = '#ff3355';
+    ctx.shadowBlur = 10;
+    mazeState.bugs.forEach(bug => {
+        ctx.beginPath();
+        ctx.arc(bug.x * cellW + cellW/2, bug.y * cellH + cellH/2, cellW/3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+   
+    // Dibujar jugador
+    ctx.fillStyle = '#00f5ff';
+    ctx.shadowColor = '#00f5ff';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(mazeState.playerPos.x * cellW + cellW/2, mazeState.playerPos.y * cellH + cellH/2, cellW/2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+window.mazeGameOver = function() {
+    document.removeEventListener('keydown', handleMazeKey);
+    document.getElementById('mazeHint').textContent = "⏰ TIME'S UP! Try again!";
+    document.getElementById('mazeHint').innerHTML += `<br><button class="puzzle-btn primary" onclick="retryMaze()" style="margin-top: 1rem;">↺ Retry</button>`;
+}
+
+window.retryMaze = function() {
+    initMazeGame();
+};
+
+// ============================================
+// NIVEL 8: BUG HUNTER
+// ============================================
+
+window.renderBugHunterGame = function(puzzleIndex) {
+    return `
+        <div class="puzzle-prompt">
+            🎯 <strong>BUG HUNTER</strong><br>
+            Click on code lines with bugs (typos, wrong syntax). Don't click correct code!
+        </div>
+        <div class="bughunter-game" id="bugHunterGame">
+            <div class="bughunter-hud">
+                <div class="bughunter-score">Score: <span id="bhScore">0</span>/200</div>
+                <div class="bughunter-phase">Phase <span id="bhPhase">1</span>/4</div>
+                <div class="bughunter-lives">❤️ <span id="bhLives">3</span></div>
+            </div>
+            <div class="bughunter-progress">
+                <div class="bughunter-progress-bar" id="bhProgress" style="width: 0%"></div>
+            </div>
+        </div>
+        <div class="puzzle-actions">
+            <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+        </div>
+    `;
+}
+
+window.initBugHunterGame = function() {
+    bugHunterState = {
+        score: 0,
+        lives: 3,
+        phase: 0,
+        activeLines: [],
+        lineId: 0
+    };
+   
+    spawnCodeLines();
+}
+
+window.spawnCodeLines = function() {
+    if (state.current !== GameState.PUZZLE) return;
+   
+    const game = document.getElementById('bugHunterGame');
+    if (!game) return;
+   
+    const phaseConfig = bugHunterPhases[bugHunterState.phase];
+    const isBug = Math.random() < phaseConfig.bugChance;
+   
+    const line = document.createElement('div');
+    line.className = 'code-line' + (isBug ? ' bug' : '');
+    line.id = 'line-' + bugHunterState.lineId++;
+   
+    if (isBug) {
+        const bugData = codeLines.bugs[Math.floor(Math.random() * codeLines.bugs.length)];
+        line.textContent = bugData.code;
+        line.dataset.error = bugData.error;
+    } else {
+        line.textContent = codeLines.correct[Math.floor(Math.random() * codeLines.correct.length)];
+    }
+   
+    line.style.top = '60px';
+    line.onclick = () => clickCodeLine(line, isBug);
+   
+    game.appendChild(line);
+    bugHunterState.activeLines.push({ el: line, isBug, y: 60 });
+   
+    // Animar caída
+    animateCodeLines();
+   
+    // Siguiente línea
+    setTimeout(spawnCodeLines, phaseConfig.speed);
+}
+
+window.animateCodeLines = function() {
+    const game = document.getElementById('bugHunterGame');
+    if (!game) return;
+   
+    bugHunterState.activeLines = bugHunterState.activeLines.filter(lineData => {
+        lineData.y += 2;
+        lineData.el.style.top = lineData.y + 'px';
+       
+        // ¿Escapó?
+        if (lineData.y > game.clientHeight - 50) {
+            if (lineData.isBug && lineData.el.parentElement) {
+                // Bug escapó!
+                bugHunterState.lives--;
+                updateBugHunterUI();
+               
+                const escaped = document.createElement('div');
+                escaped.className = 'bug-escaped';
+                escaped.textContent = '🐛 BUG ESCAPED!';
+                game.appendChild(escaped);
+                setTimeout(() => escaped.remove(), 500);
+               
+                if (bugHunterState.lives <= 0) {
+                    bugHunterGameOver();
+                    return false;
+                }
+            }
+            lineData.el.remove();
+            return false;
+        }
+        return true;
+    });
+   
+    if (state.current === GameState.PUZZLE && bugHunterState.lives > 0) {
+        requestAnimationFrame(animateCodeLines);
+    }
+}
+
+function clickCodeLine(line, isBug) {
+    if (line.classList.contains('hit') || line.classList.contains('miss')) return;
+   
+    if (isBug) {
+        line.classList.add('hit');
+        bugHunterState.score += 10;
+        showNotification(`+10! Bug found: ${line.dataset.error}`, 'success');
+    } else {
+        line.classList.add('miss');
+        bugHunterState.score = Math.max(0, bugHunterState.score - 5);
+        showNotification('-5! That was correct code!', 'error');
+    }
+   
+    updateBugHunterUI();
+    checkBugHunterPhase();
+   
+    setTimeout(() => line.remove(), 300);
+}
+
+window.updateBugHunterUI = function() {
+    document.getElementById('bhScore').textContent = bugHunterState.score;
+    document.getElementById('bhLives').textContent = bugHunterState.lives;
+    document.getElementById('bhPhase').textContent = bugHunterState.phase + 1;
+    document.getElementById('bhProgress').style.width = (bugHunterState.score / 200 * 100) + '%';
+}
+
+window.checkBugHunterPhase = function() {
+    if (bugHunterState.score >= 200) {
+        completePuzzle(7, "🎉 BUG EXTERMINATOR! Score: " + bugHunterState.score);
+        return;
+    }
+   
+    // Cambiar fase
+    for (let i = bugHunterPhases.length - 1; i >= 0; i--) {
+        if (bugHunterState.score >= bugHunterPhases[i].target - 50) {
+            if (bugHunterState.phase !== i) {
+                bugHunterState.phase = i;
+                showNotification(`Phase ${i + 1} - Speed increasing!`, 'info');
+            }
+            break;
+        }
+    }
+}
+
+window.bugHunterGameOver = function() {
+    const game = document.getElementById('bugHunterGame');
+    game.innerHTML = `
+        <div style="text-align: center; padding: 3rem;">
+            <h2 style="color: var(--neon-red); margin-bottom: 1rem;">💀 GAME OVER</h2>
+            <p>Final Score: ${bugHunterState.score}/200</p>
+            <button class="puzzle-btn primary" onclick="retryBugHunter()" style="margin-top: 1rem;">↺ Try Again</button>
+        </div>
+    `;
+}
+
+window.retryBugHunter = function() {
+    document.getElementById('puzzleContainer').innerHTML = renderBugHunterGame(7);
+    setTimeout(initBugHunterGame, 500);
+};
+
+
+/* ============================================
+   DAM ESCAPE v4.0 - FUNCIONES DE MINIJUEGOS
+   Parte 3: Packet Defense y THE GLITCH (Boss)
+   ============================================ */
+
+// ============================================
+// NIVEL 9: PACKET DEFENSE
+// ============================================
+
+window.renderPacketGame = function(puzzleIndex) {
+    return `
+        <div class="puzzle-prompt">
+            🛡️ <strong>PACKET DEFENSE</strong><br>
+            Protect your server! ALLOW legit traffic, DENY attacks, QUARANTINE suspicious packets.
+        </div>
+        <div class="packet-game" id="packetGame">
+            <div class="packet-hud">
+                <div class="packet-score">Score: <span id="pktScore">0</span>/30</div>
+                <div class="packet-health" id="pktHealth">
+                    <div class="health-bar"></div>
+                    <div class="health-bar"></div>
+                    <div class="health-bar"></div>
+                    <div class="health-bar"></div>
+                    <div class="health-bar"></div>
+                    <div class="health-bar"></div>
+                </div>
+                <div class="packet-wave">Wave <span id="pktWave">1</span>/5</div>
+            </div>
+            <div class="packet-arena">
+                <div class="server-icon">🖥️</div>
+            </div>
+            <div class="packet-content" id="packetContent">
+                <div class="packet-description" id="pktDesc">Preparing first wave...</div>
+                <div class="packet-timer" id="pktTimer">--</div>
+                <div class="packet-buttons">
+                    <button class="packet-btn allow" onclick="classifyPacket('allow')">✅ ALLOW</button>
+                    <button class="packet-btn quarantine" onclick="classifyPacket('quarantine')">⚠️ QUARANTINE</button>
+                    <button class="packet-btn deny" onclick="classifyPacket('deny')">❌ DENY</button>
+                </div>
+            </div>
+        </div>
+        <div class="puzzle-actions">
+            <button class="puzzle-btn secondary" onclick="puzzleHint()">💡 Hint</button>
+        </div>
+    `;
+}
+
+window.initPacketGame = function() {
+    packetState = {
+        score: 0,
+        health: 6,
+        wave: 0,
+        currentPacket: null,
+        packetsLeft: 0,
+        timer: null,
+        timeLeft: 0
+    };
+   
+    setTimeout(() => startPacketWave(), 1500);
+}
+
+window.startPacketWave = function() {
+    if (packetState.wave >= packetWaves.length) {
+        // Victoria!
+        if (packetState.score >= 30) {
+            completePuzzle(8, "🎉 SERVER DEFENDED! Score: " + packetState.score);
+        } else {
+            packetGameOver("Not enough packets classified correctly!");
+        }
+        return;
+    }
+   
+    const wave = packetWaves[packetState.wave];
+    packetState.packetsLeft = wave.count;
+   
+    document.getElementById('pktWave').textContent = packetState.wave + 1;
+    showNotification(`Wave ${packetState.wave + 1} incoming!`, 'info');
+   
+    setTimeout(() => sendNextPacket(), 1000);
+}
+
+window.sendNextPacket = function() {
+    if (packetState.packetsLeft <= 0) {
+        packetState.wave++;
+        setTimeout(() => startPacketWave(), 1500);
+        return;
+    }
+   
+    if (packetState.health <= 0) return;
+   
+    // Seleccionar tipo aleatorio
+    const types = ['allow', 'deny', 'quarantine'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const packetsOfType = packets[type];
+    const description = packetsOfType[Math.floor(Math.random() * packetsOfType.length)];
+   
+    packetState.currentPacket = { type, description };
+    packetState.packetsLeft--;
+   
+    // Mostrar paquete
+    document.getElementById('pktDesc').textContent = `"${description}"`;
+   
+    // Timer
+    const waveConfig = packetWaves[packetState.wave];
+    packetState.timeLeft = waveConfig.time / 1000;
+    updatePacketTimer();
+   
+    clearInterval(packetState.timer);
+    packetState.timer = setInterval(() => {
+        packetState.timeLeft -= 0.1;
+        updatePacketTimer();
+       
+        if (packetState.timeLeft <= 0) {
+            clearInterval(packetState.timer);
+            packetTimeout();
+        }
+    }, 100);
+}
+
+window.updatePacketTimer = function() {
+    const timerEl = document.getElementById('pktTimer');
+    timerEl.textContent = packetState.timeLeft.toFixed(1) + 's';
+   
+    if (packetState.timeLeft <= 1) {
+        timerEl.style.color = 'var(--neon-red)';
+    } else {
+        timerEl.style.color = 'var(--neon-yellow)';
+    }
+}
+
+window.classifyPacket = function(choice) {
+    if (!packetState.currentPacket) return;
+   
+    clearInterval(packetState.timer);
+   
+    const correct = packetState.currentPacket.type === choice;
+   
+    if (correct) {
+        packetState.score++;
+        showNotification('+1 Correct!', 'success');
+    } else {
+        packetState.health--;
+        updatePacketHealth();
+        showNotification(`Wrong! Should be ${packetState.currentPacket.type.toUpperCase()}`, 'error');
+       
+        if (packetState.health <= 0) {
+            packetGameOver("Server compromised!");
+            return;
+        }
+    }
+   
+    document.getElementById('pktScore').textContent = packetState.score;
+   
+    // Verificar victoria
+    if (packetState.score >= 30) {
+        completePuzzle(8, "🎉 SERVER DEFENDED! Perfect security!");
+        return;
+    }
+   
+    setTimeout(() => sendNextPacket(), 500);
+};
+
+window.packetTimeout = function() {
+    packetState.health--;
+    updatePacketHealth();
+    showNotification("Too slow! Packet bypassed!", 'error');
+   
+    if (packetState.health <= 0) {
+        packetGameOver("Server compromised!");
+        return;
+    }
+   
+    setTimeout(() => sendNextPacket(), 500);
+}
+
+window.updatePacketHealth = function() {
+    const bars = document.querySelectorAll('#pktHealth .health-bar');
+    bars.forEach((bar, i) => {
+        if (i >= packetState.health) {
+            bar.classList.add('lost');
+        } else {
+            bar.classList.remove('lost');
+        }
+    });
+}
+
+window.packetGameOver = function(reason) {
+    clearInterval(packetState.timer);
+    document.getElementById('packetContent').innerHTML = `
+        <div style="text-align: center;">
+            <h2 style="color: var(--neon-red); margin-bottom: 1rem;">💥 SERVER DOWN</h2>
+            <p>${reason}</p>
+            <p>Final Score: ${packetState.score}/30</p>
+            <button class="puzzle-btn primary" onclick="retryPacket()" style="margin-top: 1rem;">↺ Try Again</button>
+        </div>
+    `;
+}
+
+window.retryPacket = function() {
+    document.getElementById('puzzleContainer').innerHTML = renderPacketGame(8);
+    setTimeout(initPacketGame, 500);
+};
+
+// ============================================
+// NIVEL 10: THE GLITCH (BOSS FINAL)
+// ============================================
+
+window.renderBossGame = function(puzzleIndex) {
+    return `
+        <div class="boss-game" id="bossGame">
+            <div class="boss-container">
+                <div class="boss-avatar" id="bossAvatar">👾</div>
+                <div class="boss-name">THE GLITCH</div>
+                <div class="boss-speech" id="bossSpeech">"So... you think you're a real developer?"</div>
+               
+                <div class="boss-phase" id="bossPhaseIndicator">
+                    <div class="phase-indicator active"></div>
+                    <div class="phase-indicator"></div>
+                    <div class="phase-indicator"></div>
+                </div>
+               
+                <div class="boss-mistakes" id="bossMistakes">Mistakes: ❌ 0/3</div>
+               
+                <div class="boss-question" id="bossQuestion" style="display: none;">
+                    <div class="boss-question-text" id="bossQText"></div>
+                    <div class="boss-timer" id="bossTimer">5</div>
+                    <div class="boss-options" id="bossOptions"></div>
+                </div>
+               
+                <div id="bossCodeChallenge" style="display: none;">
+                    <pre class="code-display" id="bossCode"></pre>
+                    <input type="text" class="boss-code-input" id="bossCodeInput" placeholder="Type your answer...">
+                </div>
+            </div>
+        </div>
+        <div class="puzzle-actions">
+            <button class="puzzle-btn primary" id="bossStartBtn" onclick="startBossFight()">⚔️ BEGIN CHALLENGE</button>
+        </div>
+       
+        <!-- CELL OVERLAY -->
+        <div class="cell-overlay" id="cellOverlay">
+            <div class="cell-container">
+                <div class="cell-bars"></div>
+                <h2 class="cell-title">⛓️ CAPTURED BY THE GLITCH ⛓️</h2>
+                <div class="cell-lock">
+                    <div class="cell-lock-title">🔒 CELL DOOR LOCK SYSTEM</div>
+                    <pre class="cell-code" id="cellCode"></pre>
+                    <div class="cell-hint" id="cellHint"></div>
+                    <input type="text" class="cell-input" id="cellInput" placeholder="Type the answer..." onkeypress="if(event.key==='Enter')attemptEscape()">
+                </div>
+                <div class="cell-timer" id="cellTimer">30</div>
+                <div class="cell-attempts" id="cellAttempts">Attempts remaining: 2</div>
+                <div class="cell-glitch-text">"You'll never escape... unless you think!"</div>
+                <button class="puzzle-btn primary" onclick="attemptEscape()" style="margin-top: 1rem;">🔓 UNLOCK</button>
+            </div>
+        </div>
+    `;
+}
+
+window.initBossGame = function() {
+    bossState = {
+        phase: 0,
+        mistakes: 0,
+        currentQuestion: 0,
+        timer: null,
+        timeLeft: 0,
+        inCell: false,
+        cellAttempts: 2,
+        cellPuzzle: null,
+        cellTimeLeft: 30
+    };
+}
+
+window.startBossFight = function() {
+    document.getElementById('bossStartBtn').style.display = 'none';
+    startBossPhase(0);
+};
+
+window.startBossPhase = function(phaseNum) {
+    bossState.phase = phaseNum;
+    bossState.currentQuestion = 0;
+   
+    // Actualizar indicadores
+    document.querySelectorAll('.phase-indicator').forEach((el, i) => {
+        el.classList.remove('active', 'complete');
+        if (i < phaseNum) el.classList.add('complete');
+        if (i === phaseNum) el.classList.add('active');
+    });
+   
+    const speeches = [
+        '"Let\'s test your knowledge, human!"',
+        '"Now let\'s see if you can CODE!"',
+        '"FINAL TEST! One mistake and you\'re MINE!"'
+    ];
+   
+    document.getElementById('bossSpeech').textContent = speeches[phaseNum];
+   
+    setTimeout(() => {
+        if (phaseNum === 0) startPhase1();
+        else if (phaseNum === 1) startPhase2();
+        else if (phaseNum === 2) startPhase3();
+    }, 1500);
+}
+
+// FASE 1: Interrogatorio
+window.startPhase1 = function() {
+    document.getElementById('bossQuestion').style.display = 'block';
+    document.getElementById('bossCodeChallenge').style.display = 'none';
+    askBossQuestion();
+}
+
+window.askBossQuestion = function() {
+    const phase = bossPhases.phase1;
+   
+    if (bossState.currentQuestion >= phase.questions.length) {
+        // Fase completada!
+        document.getElementById('bossSpeech').textContent = '"Hmph... not bad. But can you CODE?!"';
+        setTimeout(() => startBossPhase(1), 2000);
+        return;
+    }
+   
+    const q = phase.questions[bossState.currentQuestion];
+    document.getElementById('bossQText').textContent = q.q;
+    document.getElementById('bossOptions').innerHTML = q.options.map((opt, i) =>
+        `<div class="boss-option" onclick="answerBossQuestion(${i}, ${q.correct})">${String.fromCharCode(65 + i)}) ${opt}</div>`
+    ).join('');
+   
+    // Timer
+    bossState.timeLeft = phase.timePerQuestion;
+    updateBossTimer();
+   
+    clearInterval(bossState.timer);
+    bossState.timer = setInterval(() => {
+        bossState.timeLeft -= 0.1;
+        updateBossTimer();
+       
+        if (bossState.timeLeft <= 0) {
+            clearInterval(bossState.timer);
+            bossWrongAnswer("Too slow!");
+        }
+    }, 100);
+}
+
+window.answerBossQuestion = function(selected, correct) {
+    clearInterval(bossState.timer);
+   
+    const options = document.querySelectorAll('.boss-option');
+    options[correct].classList.add('correct');
+   
+    if (selected === correct) {
+        showNotification("Correct!", 'success');
+        bossState.currentQuestion++;
+        setTimeout(() => askBossQuestion(), 1000);
+    } else {
+        options[selected].classList.add('wrong');
+        bossWrongAnswer("Wrong answer!");
+    }
+};
+
+window.bossWrongAnswer = function(reason) {
+    bossState.mistakes++;
+    document.getElementById('bossMistakes').textContent = `Mistakes: ${'❌'.repeat(bossState.mistakes)} ${bossState.mistakes}/3`;
+   
+    showNotification(reason, 'error');
+   
+    if (bossState.mistakes >= 3) {
+        capturePlayer();
+    } else {
+        document.getElementById('bossSpeech').textContent = `"Ha! ${3 - bossState.mistakes} more mistakes and you're MINE!"`;
+        bossState.currentQuestion++;
+        setTimeout(() => {
+            if (bossState.phase === 0) askBossQuestion();
+            else if (bossState.phase === 1) askCodeChallenge();
+            else if (bossState.phase === 2) askFinalQuestion();
+        }, 1500);
+    }
+}
+
+// FASE 2: Speed Coding
+window.startPhase2 = function() {
+    document.getElementById('bossQuestion').style.display = 'none';
+    document.getElementById('bossCodeChallenge').style.display = 'block';
+    bossState.currentQuestion = 0;
+    askCodeChallenge();
+}
+
+window.askCodeChallenge = function() {
+    const phase = bossPhases.phase2;
+   
+    if (bossState.currentQuestion >= phase.challenges.length) {
+        document.getElementById('bossSpeech').textContent = '"Impressive... but now the REAL test begins!"';
+        setTimeout(() => startBossPhase(2), 2000);
+        return;
+    }
+   
+    const challenge = phase.challenges[bossState.currentQuestion];
+    document.getElementById('bossCode').textContent = challenge.code;
+    document.getElementById('bossCodeInput').value = '';
+    document.getElementById('bossCodeInput').placeholder = `Hint: ${challenge.hint}`;
+    document.getElementById('bossCodeInput').focus();
+   
+    // Timer
+    bossState.timeLeft = phase.timePerChallenge;
+    updateBossTimer();
+    document.getElementById('bossTimer').style.display = 'block';
+   
+    clearInterval(bossState.timer);
+    bossState.timer = setInterval(() => {
+        bossState.timeLeft -= 0.1;
+        updateBossTimer();
+       
+        if (bossState.timeLeft <= 0) {
+            clearInterval(bossState.timer);
+            bossWrongAnswer("Time's up!");
+        }
+    }, 100);
+   
+    // Listener para Enter
+    document.getElementById('bossCodeInput').onkeypress = (e) => {
+        if (e.key === 'Enter') submitCodeAnswer();
+    };
+}
+
+window.submitCodeAnswer = function() {
+    const input = document.getElementById('bossCodeInput').value.trim().toLowerCase();
+    const challenge = bossPhases.phase2.challenges[bossState.currentQuestion];
+   
+    clearInterval(bossState.timer);
+   
+    if (input === challenge.answer.toLowerCase()) {
+        showNotification("Correct!", 'success');
+        bossState.currentQuestion++;
+        setTimeout(() => askCodeChallenge(), 1000);
+    } else {
+        bossWrongAnswer(`Wrong! Answer was: ${challenge.answer}`);
+    }
+};
+
+// FASE 3: Final Showdown
+window.startPhase3 = function() {
+    document.getElementById('bossQuestion').style.display = 'block';
+    document.getElementById('bossCodeChallenge').style.display = 'none';
+    document.getElementById('bossSpeech').textContent = '"ONE MISTAKE AND YOU\'RE MINE!"';
+    bossState.currentQuestion = 0;
+    setTimeout(() => askFinalQuestion(), 1500);
+}
+
+window.askFinalQuestion = function() {
+    const phase = bossPhases.phase3;
+   
+    if (bossState.currentQuestion >= phase.questions.length) {
+        // VICTORIA TOTAL!
+        bossVictory();
+        return;
+    }
+   
+    const q = phase.questions[bossState.currentQuestion];
+    document.getElementById('bossQText').textContent = q.q;
+    document.getElementById('bossOptions').innerHTML = q.options.map((opt, i) =>
+        `<div class="boss-option" onclick="answerFinalQuestion(${i}, ${q.correct})">${String.fromCharCode(65 + i)}) ${opt}</div>`
+    ).join('');
+   
+    bossState.timeLeft = phase.timePerQuestion;
+    updateBossTimer();
+   
+    clearInterval(bossState.timer);
+    bossState.timer = setInterval(() => {
+        bossState.timeLeft -= 0.1;
+        updateBossTimer();
+       
+        if (bossState.timeLeft <= 0) {
+            clearInterval(bossState.timer);
+            capturePlayer(); // En fase 3, un error = captura
+        }
+    }, 100);
+}
+
+window.answerFinalQuestion = function(selected, correct) {
+    clearInterval(bossState.timer);
+   
+    const options = document.querySelectorAll('.boss-option');
+    options[correct].classList.add('correct');
+   
+    if (selected === correct) {
+        showNotification("Correct!", 'success');
+        bossState.currentQuestion++;
+        setTimeout(() => askFinalQuestion(), 1000);
+    } else {
+        options[selected].classList.add('wrong');
+        capturePlayer();
+    }
+};
+
+window.updateBossTimer = function() {
+    const timerEl = document.getElementById('bossTimer');
+    timerEl.textContent = Math.max(0, bossState.timeLeft).toFixed(1);
+   
+    if (bossState.timeLeft <= 2) {
+        timerEl.classList.add('critical');
+    } else {
+        timerEl.classList.remove('critical');
+    }
+}
+
+// CAPTURA Y CELDA
+window.capturePlayer = function() {
+    clearInterval(bossState.timer);
+    bossState.inCell = true;
+    bossState.cellAttempts = 2;
+    bossState.cellTimeLeft = 30;
+   
+    // Seleccionar puzzle de celda
+    bossState.cellPuzzle = cellPuzzles[Math.floor(Math.random() * cellPuzzles.length)];
+   
+    document.getElementById('cellOverlay').classList.add('visible');
+    document.getElementById('cellCode').textContent = bossState.cellPuzzle.code;
+    document.getElementById('cellHint').textContent = `💡 HINT: ${bossState.cellPuzzle.hint}`;
+    document.getElementById('cellAttempts').textContent = `Attempts remaining: ${bossState.cellAttempts}`;
+    document.getElementById('cellInput').value = '';
+    document.getElementById('cellInput').focus();
+   
+    // Timer de celda
+    bossState.timer = setInterval(() => {
+        bossState.cellTimeLeft--;
+        document.getElementById('cellTimer').textContent = bossState.cellTimeLeft;
+       
+        if (bossState.cellTimeLeft <= 0) {
+            clearInterval(bossState.timer);
+            cellGameOver();
+        }
+    }, 1000);
+}
+
+window.attemptEscape = function() {
+    const input = document.getElementById('cellInput').value.trim().toLowerCase();
+    const answer = bossState.cellPuzzle.answer.toLowerCase();
+   
+    if (input === answer) {
+        // ¡ESCAPÓ!
+        clearInterval(bossState.timer);
+        document.getElementById('cellOverlay').classList.remove('visible');
+        bossState.inCell = false;
+       
+        showNotification("🔓 ESCAPED! Continue the fight!", 'success');
+       
+        document.getElementById('bossSpeech').textContent = '"Impossible! You escaped?!"';
+        bossState.mistakes = 0;
+        document.getElementById('bossMistakes').textContent = 'Mistakes: ❌ 0/3';
+       
+        // Continuar desde donde estaba
+        setTimeout(() => {
+            if (bossState.phase === 0) askBossQuestion();
+            else if (bossState.phase === 1) askCodeChallenge();
+            else if (bossState.phase === 2) askFinalQuestion();
+        }, 2000);
+    } else {
+        bossState.cellAttempts--;
+        document.getElementById('cellAttempts').textContent = `Attempts remaining: ${bossState.cellAttempts}`;
+        document.getElementById('cellInput').value = '';
+       
+        if (bossState.cellAttempts <= 0) {
+            cellGameOver();
+        } else {
+            showNotification("Wrong! Try again!", 'error');
+        }
+    }
+};
+
+window.cellGameOver = function() {
+    clearInterval(bossState.timer);
+    document.getElementById('cellOverlay').innerHTML = `
+        <div class="cell-container">
+            <h2 class="cell-title">💀 GAME OVER 💀</h2>
+            <p style="text-align: center; margin: 2rem 0;">THE GLITCH has consumed your code...</p>
+            <p style="text-align: center; color: var(--neon-cyan);">The answer was: "${bossState.cellPuzzle.answer}"</p>
+            <button class="puzzle-btn primary" onclick="retryBoss()" style="margin-top: 2rem;">↺ Try Again</button>
+        </div>
+    `;
+}
+
+window.bossVictory = function() {
+    clearInterval(bossState.timer);
+   
+    document.getElementById('bossAvatar').textContent = '💥';
+    document.getElementById('bossAvatar').style.animation = 'none';
+    document.getElementById('bossSpeech').textContent = '"NOOOO! THIS IS IMPOSSIBLE!"';
+   
+    setTimeout(() => {
+        completePuzzle(9, "🎉 THE GLITCH DEFEATED! You are a TRUE DEVELOPER!");
+    }, 2000);
+}
+
+window.retryBoss = function() {
+    document.getElementById('cellOverlay').classList.remove('visible');
+    document.getElementById('cellOverlay').innerHTML = ''; // Reset
+    document.getElementById('puzzleContainer').innerHTML = renderBossGame(9);
+    setTimeout(initBossGame, 500);
+};
+
+// ============================================
+// INTEGRACIÓN CON SISTEMA DE PUZZLES
+// ============================================
+
+// Añadir a la función openPuzzle existente (switch/case adicionales):
+/*
+case 5: // Memory Overflow
+    html += renderMemoryGame(puzzleIndex);
+    container.innerHTML = html;
+    initMemoryGame();
+    break;
+
+case 6: // Code Maze
+    html += renderMazeGame(puzzleIndex);
+    container.innerHTML = html;
+    initMazeGame();
+    break;
+
+case 7: // Bug Hunter
+    html += renderBugHunterGame(puzzleIndex);
+    container.innerHTML = html;
+    initBugHunterGame();
+    break;
+
+case 8: // Packet Defense
+    html += renderPacketGame(puzzleIndex);
+    container.innerHTML = html;
+    initPacketGame();
+    break;
+
+case 9: // THE GLITCH (Boss)
+    html += renderBossGame(puzzleIndex);
+    container.innerHTML = html;
+    initBossGame();
+    break;
+*/
+
+// Añadir cleanup cuando se cierre puzzle:
+/*
+function closePuzzle() {
+    // Limpiar timers de minijuegos
+    if (mazeState.timer) clearInterval(mazeState.timer);
+    if (packetState.timer) clearInterval(packetState.timer);
+    if (bossState.timer) clearInterval(bossState.timer);
+   
+    // Remover event listeners
+    document.removeEventListener('keydown', handleMazeKey);
+   
+    // ... resto del código existente
+}
+*/
+
+
+    // Animation Loop
+    function animate() {
+        requestAnimationFrame(animate);
+       
+        if (state.current === GameState.PLAYING) {
+            updateMovement();
+            checkInteractables();
+        }
+       
+        renderer.render(scene, camera);
+    }
+
+    function updateMovement() {
+        if (!isPointerLocked) return;
+       
+        const speed = 0.12;
+        const direction = new THREE.Vector3();
+        camera.getWorldDirection(direction);
+        direction.y = 0;
+        direction.normalize();
+       
+        const right = new THREE.Vector3();
+        right.crossVectors(direction, new THREE.Vector3(0, 1, 0)).normalize();
+       
+        const movement = new THREE.Vector3();
+        if (moveForward) movement.add(direction.clone().multiplyScalar(speed));
+        if (moveBackward) movement.add(direction.clone().multiplyScalar(-speed));
+        if (moveRight) movement.add(right.clone().multiplyScalar(speed));
+        if (moveLeft) movement.add(right.clone().multiplyScalar(-speed));
+       
+        const newPos = camera.position.clone().add(movement);
+        if (Math.abs(newPos.x) < 8.5 && Math.abs(newPos.z) < 8.5) {
+            camera.position.copy(newPos);
+        }
+    }
+
+    function checkInteractables() {
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+       
+        const intersects = raycaster.intersectObjects(interactables);
+        const crosshair = document.getElementById('crosshair');
+        const prompt = document.getElementById('interactPrompt');
+       
+        if (intersects.length > 0 && intersects[0].distance < 6) {
+            state.currentInteractable = intersects[0].object;
+            crosshair.classList.add('interactive');
+            prompt.classList.add('visible');
+            document.getElementById('interactText').textContent = state.currentInteractable.userData.text;
+        } else {
+            state.currentInteractable = null;
+            crosshair.classList.remove('interactive');
+            prompt.classList.remove('visible');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
